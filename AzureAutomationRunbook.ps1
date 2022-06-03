@@ -23,7 +23,6 @@ function SNComplete {
         $sys_id
     )
     try {
-      #$ServiceNowURI = "https://$instance.service-now.com/api/now/table/x_autps_active_dir_command_queue/$sys_id"
       $SnowInput = @{
         'status' = 4
       }
