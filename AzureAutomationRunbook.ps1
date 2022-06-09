@@ -696,7 +696,7 @@ while ($TimeNow -le $TimeEnd) {
         } 
       }
       
-      if($ParameterObject.action -eq "Import-Groups" -or $ParameterObject.action -eq "Import-All") {
+      if($ParameterObject.action -eq "Import-Groups") {
         try {
           $groups = Get-ADGroup -Filter * `
             -Properties Description `
