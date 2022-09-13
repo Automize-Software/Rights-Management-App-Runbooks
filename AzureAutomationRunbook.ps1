@@ -685,7 +685,6 @@ while ($TimeNow -le $TimeEnd) {
       if($ParameterObject.action -eq "Remove-Group") {
         try{
           $group = Remove-ADGroup -Identity $ParameterObject.group `
-            -Properties Description `
             -Server $domainControllerIP `
           	-Credential $credentials `
           	-Confirm:$false
