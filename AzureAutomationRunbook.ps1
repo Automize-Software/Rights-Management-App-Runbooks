@@ -26,14 +26,16 @@ try {
 } catch {
     throw "Unable to connect to ServiceNow instance and retrieve domain information. Make sure the provided user credential has read access to the domain record."
 }
+
 $sysdomain = $response.result.sys_domain.display_value
 $domainName = $response.result.name
 $domainControllerIP = $response.result.domain_controller_ip
 $ADcredentialsName = $response.result.automation_credentials.display_value
 $AADcredentialsName = $response.result.azureadcredentials.display_value
 
-$TenantID = $domainName + ".onmicrosoft.com"
-Write-Output $sysdomain.result.sys_domain.display_value
+#$TenantID = $domainName + ".onmicrosoft.com"
+$TenantID = $response.result.tenant_azure_active_directory
+Write-Output $TenantID
 function SNComplete {
     param (
         $sys_id
@@ -207,6 +209,21 @@ if($null -ne $ADcredentialsName) {
         #throw
     }
 }
+
+
+if($null -ne $AADcredentialsName) {
+    try {
+        $updateURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/syncstate/updating"
+        Write-Verbose $updateURI
+        $response = Invoke-RestMethod -Method "PATCH" -Uri $updateURI -Headers $ServiceNowHeaders | ConvertTo-Json
+      
+    }
+    catch {
+        Write-Error ("Exception caught at line $($_.InvocationInfo.ScriptLineNumber), $($_.Exception.Message)")
+        #throw
+    }
+}
+
 
 $TimeNow = Get-Date
 $TimeEnd = $TimeNow.addMinutes(60)
@@ -402,19 +419,43 @@ while ($TimeNow -le $TimeEnd) {
             #Create azure ad user
             if ($ParameterObject.action -eq "Create-AzureAD-User") {
                 try {
+                   
           
-                    if ($null -ne $ParameterObject.givenname -and $null -ne $ParameterObject.surname -and $ParameterObject.givenname -ne '' -and $ParameterObject.surname -ne '') {
-                        $displayname = $ParameterObject.givenname + " " + $ParameterObject.surname + " (" + $ParameterObject.username + ")"
+                    if ($null -ne $ParameterObject.usertypeset -and $ParameterObject.usertypeset -ne ''){
+                        Write-Output "usertypetest $($ParameterObject.usertypetest)"
+                        if($null -ne $ParameterObject.givenname -and $null -ne $ParameterObject.surname -and $ParameterObject.givenname -ne '' -and $ParameterObject.surname -ne '') {
+                       Write-Output "usertypetest $($ParameterObject.name)"
+                        $displayname = $ParameterObject.givenname + " " + $ParameterObject.surname + " (" + $ParameterObject.usertypeset + ")"
                     }
-                    elseif ($null -ne $ParameterObject.surname -and $ParameterObject.surname -ne '') {
-                        $displayname = $ParameterObject.surname + " (" + $ParameterObject.username + ")"
+                        elseif ($null -ne $ParameterObject.surname -and $ParameterObject.surname -ne '') {
+                        $displayname = $ParameterObject.surname + " (" + $ParameterObject.usertypeset + ")"
                     }
-                    elseif ($null -ne $ParameterObject.givenname -and $ParameterObject.givenname -ne '') {
-                        $displayname = $ParameterObject.givenname + " (" + $ParameterObject.username + ")"
+                        elseif($null -ne $ParameterObject.givenname -and $ParameterObject.givenname -ne '') {
+                        $displayname = $ParameterObject.givenname + " (" + $ParameterObject.usertypeset + ")"
+                    } 
+                    elseif($null -ne $ParameterObject.name){
+                        $displayname = $ParameterObject.name + " (" + $ParameterObject.usertypeset + ")"
+                    }
+                    
+                    }
+                     elseif ($null -ne $ParameterObject.name){
+                         Write-Output "usertypetest $($ParameterObject.name)"
+                        $displayname = $ParameterObject.name
                     }
                     else {
-                        $displayname = $ParameterObject.username
+                         if($null -ne $ParameterObject.givenname -and $null -ne $ParameterObject.surname -and $ParameterObject.givenname -ne '' -and $ParameterObject.surname -ne '') {
+                        $displayname = $ParameterObject.givenname + " " + $ParameterObject.surname 
                     }
+                    elseif ($null -ne $ParameterObject.surname -and $ParameterObject.surname -ne '') {
+                        $displayname = $ParameterObject.surname
+                    }
+                    elseif($null -ne $ParameterObject.givenname -and $ParameterObject.givenname -ne '') {
+                        $displayname = $ParameterObject.givenname 
+                    }
+                    }
+
+                    Write-Output $displayname
+                    
                     if (Get-Module -ListAvailable -Name "AzureAD") {
                         Write-Verbose "Found AzureAD module"
                     }
@@ -422,8 +463,9 @@ while ($TimeNow -le $TimeEnd) {
                         throw "Could not find AzureAD module. Please install this module"
                     }
                     $userName = $ParameterObject.username
-    
+                    Write-Output "username $userName"
                     $AADdomainprinc = (Get-AzureADDomain | Where-Object { $_.isDefault }).name
+                    Write-Output "$AADdomainprinc"
                     $princname = $userName -replace '\s', ''
                     $userprinname = $princname + "@" + $AADdomainprinc
 		
@@ -438,7 +480,7 @@ while ($TimeNow -le $TimeEnd) {
                         $PasswordProfile.Password = $ParameterObject.password
         
                         $user = New-AzureADUser `
-                            -DisplayName $userName `
+                            -DisplayName $displayname `
                             -AgeGroup $ParameterObject.agegroup `
                             -City $ParameterObject.city `
                             -CompanyName $ParameterObject.company `
@@ -835,10 +877,13 @@ while ($TimeNow -le $TimeEnd) {
             if ($ParameterObject.action -eq "Set-AzureAD-User-Password") {
                 try {
                     $identity = $ParameterObject.user
-                    $user = Set-ADAccountPassword -ObjectId $identity -password (ConvertTo-SecureString $ParameterObject.password -AsPlainText -Force) 
-                    Write-Output "User password has been set"  
+					#################added###########################
+                    $PasswordProfile = New-Object -TypeName Microsoft.Open.AzureAD.Model.PasswordProfile
+                    $PasswordProfile.Password = $ParameterObject.password
+                    $user = Set-AzureADUserPassword -ObjectId $identity -Password (ConvertTo-SecureString $ParameterObject.password -AsPlainText -Force) 
+                   Write-Output "User password has been set"  
                     if ($ParameterObject.mustChange -eq $true) {
-                        Set-ADUser -Identity $ParameterObject.user `
+                        Set-AzureADUser -ObjectId $ParameterObject.user `
                             -ForceChangePasswordNextLogin $true
                         Write-Output "User must change password at next login"
                     }
@@ -1010,7 +1055,11 @@ while ($TimeNow -le $TimeEnd) {
                         Install-Module -Name "AzureAD"
                         throw "Could not find AzureAD module. Please install this module"
                     }
-	
+	$ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/syncstate/updating"
+      
+        Write-Verbose $ServiceNowURI
+        $response = Invoke-RestMethod -Method "PATCH" -Uri $ServiceNowURI -Headers $ServiceNowHeaders | ConvertTo-Json
+    
                     $properties = @(
                         'ObjectId',
                         'Name',
@@ -1018,6 +1067,7 @@ while ($TimeNow -le $TimeEnd) {
                         'givenname',
                         'surname',
                         'userprincipalname',
+                        'Mail',
                         'MailNickName',
                         'jobtitle',
                         'department',
@@ -1051,6 +1101,7 @@ while ($TimeNow -le $TimeEnd) {
                             'City'              = $user.City
                             'Company'           = $user.CompanyName
                             'Country'           = $user.Country
+                            'Email'				= $user.Mail
                             'Department'        = $user.Department
                             'Description'       = $user.Description
                             'MailNickName'      = $user.MailNickName
@@ -1076,6 +1127,11 @@ while ($TimeNow -le $TimeEnd) {
                     $ServiceNowURI2 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/identity/cleanup"
                     $response2 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PATCH' -Uri $ServiceNowURI2
                     SNComplete $jobQueueItem.sys_id
+                    $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/syncstate/ready"
+      
+        Write-Verbose $ServiceNowURI
+        $response = Invoke-RestMethod -Method "PATCH" -Uri $ServiceNowURI -Headers $ServiceNowHeaders | ConvertTo-Json
+    
                 }
                 catch {
                     Write-Error ("Exception caught at line $($_.InvocationInfo.ScriptLineNumber), $($_.Exception.Message)")
@@ -1492,7 +1548,11 @@ while ($TimeNow -le $TimeEnd) {
                         Install-Module -Name "AzureAD"
                         throw "Could not find AzureAD module. Please install this module"
                     }
-		
+		$ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/syncstate/updating"
+      
+        Write-Verbose $ServiceNowURI
+        $response = Invoke-RestMethod -Method "PATCH" -Uri $ServiceNowURI -Headers $ServiceNowHeaders | ConvertTo-Json
+    
                     $groups = Get-AzureADGroup -all $true 
       
           
@@ -1539,6 +1599,11 @@ while ($TimeNow -le $TimeEnd) {
                     $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/adgroup/cleanup"
                     $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PATCH' -Uri $ServiceNowURI
                     SNComplete $jobQueueItem.sys_id
+                    $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/syncstate/ready"
+      
+        Write-Verbose $ServiceNowURI
+        $response = Invoke-RestMethod -Method "PATCH" -Uri $ServiceNowURI -Headers $ServiceNowHeaders | ConvertTo-Json
+    
                 }
                 catch {
                     Write-Error ("Exception caught at line $($_.InvocationInfo.ScriptLineNumber), $($_.Exception.Message)")
