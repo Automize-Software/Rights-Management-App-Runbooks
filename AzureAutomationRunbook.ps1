@@ -426,35 +426,50 @@ while ($TimeNow -le $TimeEnd) {
                         if($null -ne $ParameterObject.givenname -and $null -ne $ParameterObject.surname -and $ParameterObject.givenname -ne '' -and $ParameterObject.surname -ne '') {
                        Write-Output "usertypetest $($ParameterObject.name)"
                         $displayname = $ParameterObject.givenname + " " + $ParameterObject.surname + " (" + $ParameterObject.usertypeset + ")"
+                        $usernameoption2 = $ParameterObject.givenname  + $ParameterObject.surname  +"_"+ $ParameterObject.usertypeset 
                     }
                         elseif ($null -ne $ParameterObject.surname -and $ParameterObject.surname -ne '') {
                         $displayname = $ParameterObject.surname + " (" + $ParameterObject.usertypeset + ")"
+                        $usernameoption2 =  $ParameterObject.surname + "_" + $ParameterObject.usertypeset 
                     }
                         elseif($null -ne $ParameterObject.givenname -and $ParameterObject.givenname -ne '') {
                         $displayname = $ParameterObject.givenname + " (" + $ParameterObject.usertypeset + ")"
+                        $usernameoption2 = $ParameterObject.givenname + "_" + $ParameterObject.usertypeset
                     } 
                     elseif($null -ne $ParameterObject.name){
                         $displayname = $ParameterObject.name + " (" + $ParameterObject.usertypeset + ")"
+                        $usernameoption2 = $ParameterObject.name + "_" + $ParameterObject.usertypeset 
                     }
                     
                     }
                      elseif ($null -ne $ParameterObject.name){
-                         Write-Output "usertypetest $($ParameterObject.name)"
+                         Write-Output "username $($ParameterObject.name)"
                         $displayname = $ParameterObject.name
+                        $usernameoption2 = $ParameterObject.name
+
                     }
                     else {
+                        Write-Output "Name null"
                          if($null -ne $ParameterObject.givenname -and $null -ne $ParameterObject.surname -and $ParameterObject.givenname -ne '' -and $ParameterObject.surname -ne '') {
+                             Write-Output "surname givenname not null"
                         $displayname = $ParameterObject.givenname + " " + $ParameterObject.surname 
+                        $usernameoption2 = $ParameterObject.givenname + " " + $ParameterObject.surname
+                        Write-Output "Display name $($displayname)"
                     }
                     elseif ($null -ne $ParameterObject.surname -and $ParameterObject.surname -ne '') {
+                        Write-Output "Surname not null"
                         $displayname = $ParameterObject.surname
+                        $usernameoption2 = $ParameterObject.surname
+                        Write-Output "Display name $($displayname)"
                     }
                     elseif($null -ne $ParameterObject.givenname -and $ParameterObject.givenname -ne '') {
                         $displayname = $ParameterObject.givenname 
+                        $usernameoption2 = $ParameterObject.givenname 
                     }
                     }
 
                     Write-Output $displayname
+                    Write-Output $usernameoption2
                     
                     if (Get-Module -ListAvailable -Name "AzureAD") {
                         Write-Verbose "Found AzureAD module"
@@ -462,7 +477,13 @@ while ($TimeNow -le $TimeEnd) {
                     else {
                         throw "Could not find AzureAD module. Please install this module"
                     }
-                    $userName = $ParameterObject.username
+                    if ($null -ne $ParameterObject.username -and $ParameterObject.username -ne ''){
+                        $userName = $ParameterObject.username
+                    }
+                    else{
+                        $string = $usernameoption2 -replace '\s',''
+                        $userName = $string
+                    }
                     Write-Output "username $userName"
                     $AADdomainprinc = (Get-AzureADDomain | Where-Object { $_.isDefault }).name
                     Write-Output "$AADdomainprinc"
