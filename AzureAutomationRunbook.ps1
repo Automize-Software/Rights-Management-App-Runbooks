@@ -177,12 +177,27 @@ else {
     try {
         Write-Warning "Azure Active Directory module was not found. Trying to install it."
         Install-Module "AzureAD" -Force
+	Install-Module Microsoft.Graph -Force
     }
     catch {
         throw "Did not find Azure Active Directory module. Please make sure the AzureAD module is installed."
     }
 }
 Import-Module "AzureAD"
+
+if (Get-Module -ListAvailable -Name "Microsoft.Graph") {
+    Write-Verbose "Found microsoft graph module"
+}
+else {
+    try {
+        Write-Warning "Microsoft Graph module was not found. Trying to install it."
+	Install-Module Microsoft.Graph -Force
+    }
+    catch {
+        throw "Did not find Microsoft Graph module. Please make sure the AzureAD module is installed."
+    }
+}
+Impot-Module Microsoft.Graph
 
 # Setup connections
 
