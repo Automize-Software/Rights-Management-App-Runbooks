@@ -38,9 +38,7 @@ $Thumbprintconnection = $response.result.thumbprint
 
 #$TenantID = $domainName + ".onmicrosoft.com"
 $TenantID = $response.result.tenant_azure_active_directory
-$TenantID
-$ConnectApplicationID
-$Thumbprintconnection
+
 
 
  
@@ -196,7 +194,6 @@ else {
         throw "Did not find Microsoft Graph module. Please make sure the AzureAD module is installed."
     }
 }
-Impot-Module Microsoft.Graph
 
 # Setup connections
 
