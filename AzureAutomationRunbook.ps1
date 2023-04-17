@@ -38,6 +38,10 @@ $Thumbprintconnection = $response.result.thumbprint
 
 #$TenantID = $domainName + ".onmicrosoft.com"
 $TenantID = $response.result.tenant_azure_active_directory
+$TenantID
+$ConnectApplicationID
+$Thumbprintconnection
+
 
  
 $AllCultures = [System.Globalization.CultureInfo]::
