@@ -203,8 +203,9 @@ if($null -eq $ConnectApplicationID -or $null -eq $Thumbprintconnection) {
        
        #$tenant= (Get-AzureADDomain | Where-Object { $_.isDefault }).name
        # Write-Output "domain name $tenant"
-       Select-MgProfile –Name “beta” 
+        
        Connect-MgGraph -ClientID $ConnectApplicationID -TenantId $TenantID -CertificateThumbprint $Thumbprintconnection
+       Select-MgProfile –Name “beta”
        Get-MgContext
        $Organization = (Get-MgDomain | Where-Object { $_.isDefault }).Id
        
