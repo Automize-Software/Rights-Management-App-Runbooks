@@ -177,7 +177,6 @@ else {
     try {
         Write-Warning "Azure Active Directory module was not found. Trying to install it."
         Install-Module "AzureAD" -Force
-	Install-Module Microsoft.Graph -Force
     }
     catch {
         throw "Did not find Azure Active Directory module. Please make sure the AzureAD module is installed."
@@ -219,8 +218,9 @@ if($null -eq $ConnectApplicationID -or $null -eq $Thumbprintconnection) {
        #$tenant= (Get-AzureADDomain | Where-Object { $_.isDefault }).name
        # Write-Output "domain name $tenant"
         
-       Connect-MgGraph -ClientID $ConnectApplicationID -TenantId $TenantID -CertificateThumbprint $Thumbprintconnection
        Select-MgProfile –Name “beta”
+       Connect-MgGraph -ClientID $ConnectApplicationID -TenantId $TenantID -CertificateThumbprint $Thumbprintconnection
+       
        Get-MgContext
        $Organization = (Get-MgDomain | Where-Object { $_.isDefault }).Id
        
