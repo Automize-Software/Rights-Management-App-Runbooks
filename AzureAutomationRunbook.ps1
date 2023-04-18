@@ -31,7 +31,7 @@ $sysdomain = $response.result.sys_domain.display_value
 $domainName = $response.result.name
 $domainControllerIP = $response.result.domain_controller_ip
 $ADcredentialsName = $response.result.automation_credentials.display_value
-#$AADcredentialsName = $response.result.azureadcredentials.display_value
+$AADcredentialsName = $response.result.azureadcredentials.display_value
 $ConnectApplicationID = $response.result.applicationid
 $Thumbprintconnection = $response.result.thumbprint
 
@@ -206,7 +206,7 @@ if($null -eq $ADcredentialsName) {
 if($null -eq $ConnectApplicationID -or $null -eq $Thumbprintconnection) {
     Write-Warning "Azure Active Directory Credentials not provided. No Azure AD or Exchange Online connection will be available"
 } else {
-	#$AADcredentials = Get-AutomationPSCredential -Name $AADcredentialsName
+	$AADcredentials = Get-AutomationPSCredential -Name $AADcredentialsName
     try {
         
 
@@ -216,24 +216,24 @@ if($null -eq $ConnectApplicationID -or $null -eq $Thumbprintconnection) {
        # Write-Output "domain name $tenant"
         
 		
-       Select-MgProfile –Name “beta”
+       <#Select-MgProfile –Name “beta”
        Connect-MgGraph -ClientID $ConnectApplicationID -TenantId $TenantID -CertificateThumbprint $Thumbprintconnection
        
        Get-MgContext
        $Organization = (Get-MgDomain | Where-Object { $_.isDefault }).Id
        
        Connect-ExchangeOnline -AppId $ConnectApplicationID -CertificateThumbprint $Thumbprintconnection -Organization $Organization
-
+#>
    
          #Connect-ExchangeOnline -Credential $AADcredentials
-      <#  Connect-AzureAD -TenantId $TenantID -Credential $AADcredentials
+        Connect-AzureAD -TenantId $TenantID -Credential $AADcredentials
         Write-Output "Connect with service principal"
         # Create the self signed cert
 $currentDate = Get-Date
 $endDate = $currentDate.AddYears(4)
 $notAfter = $endDate.AddYears(4)
 $pwd = "vQ7qJxqgXAxEKdVAWHQF"
-$thumb = (New-SelfSignedCertificate -CertStoreLocation cert:\CurrentUser\my -DnsName automize.cer.CertificateLoginAD -KeyExportPolicy Exportable -Provider "Microsoft Enhanced RSA and AES Cryptographic Provider" -NotAfter $notAfter).Thumbprint
+$thumb = (New-SelfSignedCertificate -CertStoreLocation cert:\CurrentUser\my -DnsName delpro.cer.CertificateLoginAD -KeyExportPolicy Exportable -Provider "Microsoft Enhanced RSA and AES Cryptographic Provider" -NotAfter $notAfter).Thumbprint
 Write-Output $thumb
 $pwd = ConvertTo-SecureString -String $pwd -Force -AsPlainText
 Export-PfxCertificate -cert "cert:\CurrentUser\my\$thumb" -FilePath c:\temp\examplecert.pfx -Password $pwd
@@ -244,11 +244,11 @@ $keyValue = [System.Convert]::ToBase64String($cert.GetRawCertData())
 
 
 # Create the Azure Active Directory Application
-$application = New-AzureADApplication -DisplayName "CertificateLoginAD" -IdentifierUris "https://CertificateLoginAD.automize.onmicrosoft.com"
-New-AzureADApplicationKeyCredential -ObjectId $application.ObjectId -CustomKeyIdentifier "CertificateLoginAD" -StartDate $currentDate -EndDate $endDate -Type AsymmetricX509Cert -Usage Verify -Value $keyValue
+#$application = New-AzureADApplication -DisplayName "CertificateLoginAD" -IdentifierUris "https://CertificateLoginAD.delpro.onmicrosoft.com"
+New-AzureADApplicationKeyCredential -ObjectId $ConnectApplicationID -CustomKeyIdentifier "CertificateLoginAD" -StartDate $currentDate -EndDate $endDate -Type AsymmetricX509Cert -Usage Verify -Value $keyValue
 
 # Create the Service Principal and connect it to the Application
-$sp=New-AzureADServicePrincipal -AppId $application.AppId
+$sp=New-AzureADServicePrincipal -AppId $ConnectApplicationID
 
 # Give the Service Principal Reader access to the current tenant (Get-AzureADDirectoryRole)
 Add-AzureADDirectoryRoleMember -ObjectId (Get-AzureADDirectoryRole | where-object {$_.DisplayName -eq "Directory Readers"}).Objectid -RefObjectId $sp.ObjectId 
@@ -256,7 +256,7 @@ Add-AzureADDirectoryRoleMember -ObjectId (Get-AzureADDirectoryRole | where-objec
 
 # Get Tenant Detail
 $tenant=Get-AzureADTenantDetail
-# Now you can login to Azure PowerShell with your Service Principal and Certificate#>
+# Now you can login to Azure PowerShell with your Service Principal and Certificate
 #Connect-AzureAD -TenantId $TenantID -ApplicationId $ConnectApplicationID -CertificateThumbprint $Thumbprintconnection
 #Connect-MgGraph -TenantId $TenantID -AppId $ConnectApplicationID -CertificateThumbprint $Thumbprintconnection -Scopes "User.ReadWrite.All","Group.ReadWrite.All","UserAuthenticationMethod.ReadWrite.All"  
     
