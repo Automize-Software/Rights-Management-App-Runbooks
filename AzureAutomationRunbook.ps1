@@ -34,6 +34,7 @@ $ADcredentialsName = $response.result.automation_credentials.display_value
 #$AADcredentialsName = $response.result.azureadcredentials.display_value
 $ConnectApplicationID = $response.result.applicationid
 $Thumbprintconnection = $response.result.thumbprint
+$certname = $response.result.certificate.display_value
 
 
 #$TenantID = $domainName + ".onmicrosoft.com"
@@ -193,14 +194,19 @@ if($null -eq $ConnectApplicationID -or $null -eq $Thumbprintconnection) {
 } else {
 	#$AADcredentials = Get-AutomationPSCredential -Name $AADcredentialsName
     try {
-        
-
+        Import-Module Az.Accounts
+        Import-Module Az.Resources
+        Import-Module Az.Automation
+        Import-Module AzureAD
+        $cert = Get-AutomationCertificate -Name $certname
+        $Thumbprint = $cert.Thumbprint
+        $Thumbprint
        # Connect-AzureAD -TenantId $TenantID -ApplicationId $ConnectApplicationID -CertificateThumbprint $Thumbprintconnection
        
        #$tenant= (Get-AzureADDomain | Where-Object { $_.isDefault }).name
        # Write-Output "domain name $tenant"
        Select-MgProfile –Name “beta” 
-       Connect-MgGraph -ClientID $ConnectApplicationID -TenantId $TenantID -CertificateThumbprint $Thumbprintconnection
+       Connect-MgGraph -ClientID $ConnectApplicationID -TenantId $TenantID -CertificateThumbprint $Thumbprint
        Get-MgContext
        $Organization = (Get-MgDomain | Where-Object { $_.isDefault }).Id
        
@@ -2710,24 +2716,12 @@ while ($TimeNow -le $TimeEnd) {
 		  
            
                     foreach ($DR in $DRS) {
-                        $dname = $DR.DisplayName
-                        $Actions = (Get-MgRoleManagementDirectoryRoleDefinition -Filter "DisplayName eq '$dname'").RolePermissions
-                        $jsonaction = Out-String -InputObject $Actions -Width 1000
-                        $length = $jsonaction.Length
-                    
-                        if ($length -gt 0){
-                          
-                            $jsonaction = $jsonaction.Substring($jsonaction.IndexOf("{"), $length - $jsonaction.IndexOf("{"))
-                        }
-                        $string = $jsonaction -replace '\s',''
-                        $string = $string -replace ',', [Environment]::NewLine
-                        
+                       
                         $DRInput = @{
                             'Domain'          = $domainID     
                             'Name'            = $DR.DisplayName
                             'Description'     = $DR.Description 
                             'Id'              = $DR.Id
-                            'RolePermissions' = $string
                             
                             
                         }
