@@ -217,7 +217,7 @@ if($null -eq $ConnectApplicationID -or $null -eq $Thumbprintconnection ) {
 
             $MsalToken = Get-MsalToken -TenantId $TenantId -ClientId $ConnectApplicationID -ClientSecret ($secret | ConvertTo-SecureString -AsPlainText -Force)
             Connect-Graph -AccessToken $MsalToken.AccessToken
-            Connect-ExchangeOnline -AccessToken $MsalToken.AccessToken
+            #Connect-ExchangeOnline -AccessToken $MsalToken.AccessToken
         }
    
       <#  Connect-AzureAD -TenantId $TenantID -Credential $AADcredentials
