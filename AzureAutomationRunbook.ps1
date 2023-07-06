@@ -2150,7 +2150,7 @@ while ($TimeNow -le $TimeEnd) {
         Write-Verbose $ServiceNowURI
         $response = Invoke-RestMethod -Method "PATCH" -Uri $ServiceNowURI -Headers $ServiceNowHeaders | ConvertTo-Json
                     
-                    $OUS = Get-MgAdministrativeUnit -Property MembershipType,DisplayName,Description,Id
+                    $OUS = Get-MgDirectoryAdministrativeUnit -Property MembershipType,DisplayName,Description,Id
                     
           
                     $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/aadou"
@@ -2158,7 +2158,7 @@ while ($TimeNow -le $TimeEnd) {
            
                     foreach ($OU in $OUS) {
                     $OUselected = $OU
-                    $Properties = Get-MgAdministrativeUnit -AdministrativeUnitId $OUselected.Id | Select-Object -ExpandProperty AdditionalProperties 
+                    $Properties = Get-MgDirectoryAdministrativeUnit -AdministrativeUnitId $OUselected.Id | Select-Object -ExpandProperty AdditionalProperties 
                     $MembershipRule = $Properties['membershipRule']
                     $MembershipType = $Properties['membershipType']
                     if([string]::IsNullOrWhiteSpace($MembershipType)){
@@ -2185,7 +2185,7 @@ while ($TimeNow -le $TimeEnd) {
                         $body = [System.Text.Encoding]::UTF8.GetBytes($body)
                         $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI -Body $body
                         
-                            $OUMembers = Get-MgAdministrativeUnitMember -AdministrativeUnitId $OU.Id #| select $properties
+                            $OUMembers = Get-MgDirectoryAdministrativeUnitMember -AdministrativeUnitId $OU.Id #| select $properties
                             $ServiceNowOUMemberURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/adoumember"
                             foreach ($member in $OUMembers) {
                                   
