@@ -462,8 +462,8 @@ while ($TimeNow -le $TimeEnd) {
                     $body = [System.Text.Encoding]::UTF8.GetBytes($body)
                     
                     $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI -Body $body
-                    $response2 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI2 -Body $body
-                    $response3 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI3 -Body $body
+                    #$response2 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI2 -Body $body
+                    #$response3 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI3 -Body $body
 
                     $output = $response.RawContent
                     Write-Verbose "ServiceNow output: $output"
