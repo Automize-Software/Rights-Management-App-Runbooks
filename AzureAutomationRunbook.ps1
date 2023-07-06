@@ -2009,11 +2009,13 @@ while ($TimeNow -le $TimeEnd) {
             #
              if ($ParameterObject.action -eq "Update-Organizational-Unit"){
                 try{
-                    Set-ADOrganizationalUnit -Identity $ParameterObject.identity `
+                      try{
+                    Set-ADOrganizationalUnit -Server $domainControllerIP `
+                        -Credential $ADcredentials  `
+                        -Identity $ParameterObject.identity `
                     -City $ParameterObject.city `
                     -Country $ParameterObject.country `
-                    -Description $ParameterObject.description `
-                    -Name $ParameterObject.name 
+                    -Description $ParameterObject.description 
                     
                     SNComplete $jobQueueItem.sys_id
                     
