@@ -2035,10 +2035,9 @@ while ($TimeNow -le $TimeEnd) {
                     -Description $ParameterObject.description `
                     -Name $ParameterObject.name 
 
+		    $varname = $ParameterObject.name
 
-                    $OU = Get-ADOrganizationalUnit -Identity $newOU.ObjectGuid `
-                        -Server $domainControllerIP `
-                        -Credential $ADcredentials
+                    $OU = Get-ADOrganizationalUnit  -Filter "Name -eq '$($varname)'"
       
                     $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/ou"
       
