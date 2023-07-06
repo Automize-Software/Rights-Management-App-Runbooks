@@ -2096,9 +2096,13 @@ while ($TimeNow -le $TimeEnd) {
                     }
                     else {
                         Write-Verbose "Removing Organizational Unit"
+                        Set-ADOrganizationalUnit  -Server $domainControllerIP `
+                        -Credential $ADcredentials  `
+                        -Identity $identity `
+                        -ProtectedFromAccidentalDeletion $false
                        Remove-ADOrganizationalUnit -Server $domainControllerIP `
                         -Credential $ADcredentials  `
-			-Identity $identity -Confirm:$False
+                        -Identity $identity -Confirm:$False
                         Write-Verbose "Organizational Unit removed"
                         SNComplete $jobQueueItem.sys_id
                     } 
