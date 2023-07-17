@@ -617,34 +617,7 @@ while ($TimeNow -le $TimeEnd) {
                     }
                    
                    $cou = $ParameterObject.usagelocation
-          if ((-Not [string]::IsNullOrWhiteSpace($ParameterObject.usertypeset)) -and $ParameterObject.usertypeset -ne 'personal account'){
-                       
-                        if($ParameterObject.usertypeset -eq "admin"){
-                            $usertypeset = "Admin"
-                        }
-                        elseif($ParameterObject.usertypeset -eq "svc"){
-                            $usertypeset = "SVC"
-                        }
-                        if((-Not [string]::IsNullOrWhiteSpace($ParameterObject.givenname))-and (-Not [string]::IsNullOrWhiteSpace($ParameterObject.surname))) {
-                       
-                        $displayname = $ParameterObject.givenname + " " + $ParameterObject.surname + " (" + $usertypeset + ")"
-                        $usernameoption2 = $ParameterObject.givenname  + $ParameterObject.surname  +"-"+ $ParameterObject.usertypeset 
-                    }
-                        elseif (-Not [string]::IsNullOrWhiteSpace($ParameterObject.surname)) {
-                        $displayname = $ParameterObject.surname + " (" + $usertypeset + ")"
-                        $usernameoption2 =  $ParameterObject.surname + "-" + $ParameterObject.usertypeset 
-                    }
-                        elseif(-Not [string]::IsNullOrWhiteSpace($ParameterObject.givenname)) {
-                        $displayname = $ParameterObject.givenname + " (" + $usertypeset + ")"
-                        $usernameoption2 = $ParameterObject.givenname + "-" + $ParameterObject.usertypeset
-                    } 
-                    elseif(-Not [string]::IsNullOrWhiteSpace($ParameterObject.name)){
-                        $displayname = $ParameterObject.name + " (" + $ParameterObject.usertypeset + ")"
-                        $usernameoption2 = $ParameterObject.name + "-" + $ParameterObject.usertypeset 
-                    }
-                    
-                    }
-                     elseif (-Not [string]::IsNullOrWhiteSpace($ParameterObject.name)){#$null -ne $ParameterObject.name -or $ParameterObject.name  -ne ' '){
+          if (-Not [string]::IsNullOrWhiteSpace($ParameterObject.name)){#$null -ne $ParameterObject.name -or $ParameterObject.name  -ne ' '){
                          
                         $displayname = $ParameterObject.name
                         $usernameoption2 = $ParameterObject.name
