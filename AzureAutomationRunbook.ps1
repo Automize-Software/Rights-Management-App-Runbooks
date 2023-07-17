@@ -2008,7 +2008,6 @@ while ($TimeNow -le $TimeEnd) {
             #
              if ($ParameterObject.action -eq "Update-Organizational-Unit"){
                 try{
-                      try{
                     Set-ADOrganizationalUnit -Server $domainControllerIP `
                         -Credential $ADcredentials  `
                         -Identity $ParameterObject.identity `
