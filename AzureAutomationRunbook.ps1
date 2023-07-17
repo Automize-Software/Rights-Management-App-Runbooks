@@ -2241,7 +2241,7 @@ while ($TimeNow -le $TimeEnd) {
 	                    MembershipRuleProcessingState = $ParameterObject.membershipruleprocessingstate
                     }
                     }
-                    New-MgAdministrativeUnit -BodyParameter $params
+                    New-MgDirectoryAdministrativeUnit -BodyParameter $params
                     
                     SNComplete $jobQueueItem.sys_id
                     
@@ -2260,7 +2260,7 @@ while ($TimeNow -le $TimeEnd) {
                 try {
                    
                     $DisplayName = $ParameterObject.displayname
-                    $OU = Get-MgAdministrativeUnit -AdministrativeUnitId $ParameterObject.organizationalunit 
+                    $OU = Get-MgDirectoryAdministrativeUnit -AdministrativeUnitId $ParameterObject.organizationalunit 
                     
                     $params = @{
                         DisplayName = $ParameterObject.displayname
@@ -2269,9 +2269,9 @@ while ($TimeNow -le $TimeEnd) {
 	                    Description = $ParameterObject.description
                     }
 
-                    Update-MgAdministrativeUnit -AdministrativeUnitId $ParameterObject.organizationalunit -BodyParameter $params
+                    Update-MgDirectoryAdministrativeUnit -AdministrativeUnitId $ParameterObject.organizationalunit -BodyParameter $params
                  
-                    $Properties = Get-MgAdministrativeUnit -AdministrativeUnitId $OU.Id | Select-Object -ExpandProperty AdditionalProperties 
+                    $Properties = Get-MgDirectoryAdministrativeUnit -AdministrativeUnitId $OU.Id | Select-Object -ExpandProperty AdditionalProperties 
                     $MembershipRule = $Properties['membershipRule']
                     $MembershipType = $Properties['membershipType']
            
@@ -2326,13 +2326,13 @@ while ($TimeNow -le $TimeEnd) {
                 try {
                     $identity = $ParameterObject.organizationalunit
                   
-                    $OU = Get-MgAdministrativeUnit -AdministrativeUnitId $identity
+                    $OU = Get-MgDirectoryAdministrativeUnit -AdministrativeUnitId $identity
                     if (!$OU) {
                         throw "Cannot find organizational unit. The ou does not exist"
                     }
                     else {
                         Write-Verbose "Removing Organizational Unit"
-                       Remove-MgAdministrativeUnit -AdministrativeUnitId $identity
+                       Remove-MgDirectoryAdministrativeUnit -AdministrativeUnitId $identity
                         Write-Verbose "Organizational Unit removed"
                         SNComplete $jobQueueItem.sys_id
                     } 
@@ -2353,11 +2353,11 @@ while ($TimeNow -le $TimeEnd) {
                     if (!$group) {
                         throw "The group was not found"
                     }
-                    $OU = Get-MgAdministrativeUnit -AdministrativeUnitId $ParameterObject.ou
+                    $OU = Get-MgDirectoryAdministrativeUnit -AdministrativeUnitId $ParameterObject.ou
                     $params = @{
 	                "@odata.id" = "https://graph.microsoft.com/beta/groups/$($ParameterObject.group)"
                         }
-                    New-MgAdministrativeUnitMemberByRef -AdministrativeUnitId $OU.Id -BodyParameter $params
+                    New-MgDirectoryAdministrativeUnitMemberByRef -AdministrativeUnitId $OU.Id -BodyParameter $params
           
                     $groupm = Get-MgGroupMember -GroupId $ParameterObject.group 
                        
@@ -2403,7 +2403,7 @@ while ($TimeNow -le $TimeEnd) {
                     if (!$group) {
                         throw "The group was not found"
                     }
-                    Remove-MgAdministrativeUnitMemberByRef -AdministrativeUnitId $ParameterObject.ou -DirectoryObjectId $ParameterObject.group
+                    Remove-MgDirectoryAdministrativeUnitMemberByRef -AdministrativeUnitId $ParameterObject.ou -DirectoryObjectId $ParameterObject.group
                     SNComplete $jobQueueItem.sys_id
                 }
                 catch {
@@ -2421,11 +2421,11 @@ while ($TimeNow -le $TimeEnd) {
                     if (!$user) {
                         throw "The user was not found"
                     }
-                    $OU = Get-MgAdministrativeUnit -AdministrativeUnitId $ParameterObject.ou
+                    $OU = Get-MgDirectoryAdministrativeUnit -AdministrativeUnitId $ParameterObject.ou
                     $params = @{
 	                "@odata.id" = "https://graph.microsoft.com/beta/users/$($ParameterObject.user)"
                         }
-                    New-MgAdministrativeUnitMemberByRef -AdministrativeUnitId $OU.Id -BodyParameter $params
+                    New-MgDirectoryAdministrativeUnitMemberByRef -AdministrativeUnitId $OU.Id -BodyParameter $params
           
                        
                     $ServiceNowGroupMemberURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/adoumember"
@@ -2474,7 +2474,7 @@ while ($TimeNow -le $TimeEnd) {
                     if (!$user) {
                         throw "The user was not found"
                     }
-                    Remove-MgAdministrativeUnitMemberByRef -AdministrativeUnitId $ParameterObject.ou -DirectoryObjectId $ParameterObject.user
+                    Remove-MgDirectoryAdministrativeUnitMemberByRef -AdministrativeUnitId $ParameterObject.ou -DirectoryObjectId $ParameterObject.user
                     SNComplete $jobQueueItem.sys_id
                 }
                 catch {
