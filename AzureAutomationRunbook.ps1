@@ -182,6 +182,33 @@ else {
 }
 Import-Module "AzureAD"
 
+try {
+    Write-Warning "Az.Accounts module was not found. Trying to install it."
+    Install-Module "Az.Accounts" -Force
+}
+catch {
+    throw "Did not find Az.Accounts module. Please make sure the Az.Accounts module is installed"
+}
+Import-Module "Az.Accounts"
+
+try {
+    Write-Warning "Az.Resources module was not found. Trying to install it."
+    Install-Module "Az.Resources" -Force
+}
+catch {
+    throw "Did not find Az.Resources module. Please make sure the Az.Resources module is installed"
+}
+Import-Module "Az.Resources"
+
+try {
+    Write-Warning "Az.Automation module was not found. Trying to install it."
+    Install-Module "Az.Automation" -Force
+}
+catch {
+    throw "Did not find Az.Automation module. Please make sure the Az.Automation module is installed"
+}
+Import-Module "Az.Automation"
+
 # Setup connections
 
 if($null -eq $ADcredentialsName) {
@@ -381,6 +408,7 @@ while ($TimeNow -le $TimeEnd) {
                         -EmailAddress $ParameterObject.emailAddress `
                         -OfficePhone $ParameterObject.officePhone `
                         -MobilePhone $ParameterObject.mobilePhone `
+                        -Manager $ParameterObject.manager `
                         -Department $ParameterObject.department `
                         -EmployeeID $ParameterObject.employeeid `
                         -EmployeeNumber $ParameterObject.employeenumber `
@@ -415,7 +443,7 @@ while ($TimeNow -le $TimeEnd) {
                         -PassThru:$true
           }#>
                     $user = Get-ADUser -Identity $ParameterObject.username `
-                        -Properties GivenName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
+                        -Properties GivenName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Manager, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
                         -Server $domainControllerIP `
                         -Credential $ADcredentials
 
@@ -448,6 +476,7 @@ while ($TimeNow -le $TimeEnd) {
                         'EmployeeNumber'        = $user.EmployeeNumber
                         'LockedOut'             = $user.LockedOut
                         'MobilePhone'           = $user.MobilePhone
+                        'Manager'               = $user.Manager
                         'Office'                = $user.Office
                         'OfficePhone'           = $user.OfficePhone
                         'PasswordExpired'       = $user.PasswordExpired
@@ -811,7 +840,7 @@ while ($TimeNow -le $TimeEnd) {
             if ($ParameterObject.action -eq "Update-User") {
                 try {
                     $user = Get-ADUser -Identity $ParameterObject.user `
-                        -Properties GivenName, Surname, Description, title, office, postalcode, city, country, company, emailaddress, officephone, mobilephone, department, employeeid, employeenumber `
+                        -Properties GivenName, Surname, Description, title, office, postalcode, city, country, company, emailaddress, officephone, mobilephone, manager, department, employeeid, employeenumber `
                         -Server $domainControllerIP `
                         -Credential $ADcredentials
             
@@ -839,7 +868,7 @@ while ($TimeNow -le $TimeEnd) {
                         -Credential $ADcredentials
           
                     $user = Get-ADUser -Identity $ParameterObject.user `
-                        -Properties GivenName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
+                        -Properties GivenName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Manager, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
                         -Server $domainControllerIP `
                         -Credential $ADcredentials
       
@@ -871,6 +900,7 @@ while ($TimeNow -le $TimeEnd) {
                         'lastLogon'             = $user.lastLogon
                         'LockedOut'             = $user.LockedOut
                         'MobilePhone'           = $user.MobilePhone
+                        'Manager'               = $user.Manager
                         'Office'                = $user.Office
                         'OfficePhone'           = $user.OfficePhone
                         'PasswordExpired'       = $user.PasswordExpired
@@ -1208,8 +1238,10 @@ while ($TimeNow -le $TimeEnd) {
 
             if ($ParameterObject.action -eq "Import-Users") {
                 try {
+                    $When = ((Get-Date).AddDays(-1)).Date
+		    #$users = Get-ADUser -Filter {whenCreated -ge $When} `
                     $users = Get-ADUser -Filter * `
-                        -Properties GivenName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, accountExpires, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
+                        -Properties whenCreated, GivenName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, accountExpires, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
                         -Server $domainControllerIP `
                         -Credential $ADcredentials
       
@@ -1244,6 +1276,7 @@ while ($TimeNow -le $TimeEnd) {
                             'lastLogon'             = $user.lastLogon
                             'LockedOut'             = $user.LockedOut
                             'MobilePhone'           = $user.MobilePhone
+                            'Manager'               = $user.Manager
                             'Office'                = $user.Office
                             'OfficePhone'           = $user.OfficePhone
                             'PasswordExpired'       = $user.PasswordExpired
@@ -1854,6 +1887,8 @@ while ($TimeNow -le $TimeEnd) {
             #
             if ($ParameterObject.action -eq "Import-Groups") {
                 try {
+                    $When = ((Get-Date).AddDays(-30)).Date
+		    #$groups = Get-ADGroup -Filter {whenChanged -ge $When} `
                     $groups = Get-ADGroup -Filter * `
                         -Properties Description `
                         -Server $domainControllerIP `
