@@ -175,6 +175,7 @@ else {
     try {
         Write-Warning "Azure Active Directory module was not found. Trying to install it."
         Install-Module "AzureAD" -Force
+	Install-Module "Microsoft.Graph" -Force
     }
     catch {
         throw "Did not find Azure Active Directory module. Please make sure the AzureAD module is installed."
@@ -449,7 +450,7 @@ while ($TimeNow -le $TimeEnd) {
 
       
                     $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/user"
-                    $ServiceNowURI2 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/identity"
+                   # $ServiceNowURI2 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/identity"
                    
                     Write-Verbose "ServiceNow URL $ServiceNowURI"
           
