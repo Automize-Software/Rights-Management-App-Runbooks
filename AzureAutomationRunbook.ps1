@@ -141,6 +141,7 @@ function SNFail {
 
 #Write-Verbose "Runbook started - $($metadata.startTime)" -Verbose
  
+
 if (Get-Module -ListAvailable -Name "ActiveDirectory") {
     Write-Verbose "Found ActiveDirectory module"
 }
@@ -175,40 +176,26 @@ else {
     try {
         Write-Warning "Azure Active Directory module was not found. Trying to install it."
         Install-Module "AzureAD" -Force
-	Install-Module "Microsoft.Graph" -Force
     }
     catch {
         throw "Did not find Azure Active Directory module. Please make sure the AzureAD module is installed."
     }
 }
+
+if (Get-Module -ListAvailable -Name "Microsoft.Graph") {
+    Write-Verbose "Found Exchange Azure Active Directory module"
+}
+else {
+    try {
+        Write-Warning "Microsoft.Graph module was not found. Trying to install it."
+        Install-Module "Microsoft.Graph" -Force
+    }
+    catch {
+        throw "Did not find Microsoft.Graph module. Please make sure the AzureAD module is installed."
+    }
+} 
 Import-Module "AzureAD"
 
-try {
-    Write-Warning "Az.Accounts module was not found. Trying to install it."
-    Install-Module "Az.Accounts" -Force
-}
-catch {
-    throw "Did not find Az.Accounts module. Please make sure the Az.Accounts module is installed"
-}
-Import-Module "Az.Accounts"
-
-try {
-    Write-Warning "Az.Resources module was not found. Trying to install it."
-    Install-Module "Az.Resources" -Force
-}
-catch {
-    throw "Did not find Az.Resources module. Please make sure the Az.Resources module is installed"
-}
-Import-Module "Az.Resources"
-
-try {
-    Write-Warning "Az.Automation module was not found. Trying to install it."
-    Install-Module "Az.Automation" -Force
-}
-catch {
-    throw "Did not find Az.Automation module. Please make sure the Az.Automation module is installed"
-}
-Import-Module "Az.Automation"
 
 # Setup connections
 
@@ -223,10 +210,7 @@ if($null -eq $ConnectApplicationID -or $null -eq $Thumbprintconnection ) {
 } else {
 	#$AADcredentials = Get-AutomationPSCredential -Name $AADcredentialsName
     try {
-        Import-Module Az.Accounts
-        Import-Module Az.Resources
-        Import-Module Az.Automation
-        Import-Module AzureAD
+       
         if ($null -ne $Thumbprintconnection -and $Thumbprintconnection -ne '' ){
         
        
@@ -244,7 +228,7 @@ if($null -eq $ConnectApplicationID -or $null -eq $Thumbprintconnection ) {
             $SecuredPasswordPassword = ConvertTo-SecureString -String $SecuredPassword -AsPlainText -Force
 
             $MsalToken = Get-MsalToken -TenantId $TenantId -ClientId $ConnectApplicationID -ClientSecret ($secret | ConvertTo-SecureString -AsPlainText -Force)
-            Connect-Graph -AccessToken $MsalToken.AccessToken
+            Connect-MgGraph -AccessToken $MsalToken.AccessToken
             #Connect-ExchangeOnline -AccessToken $MsalToken.AccessToken
         }
    
@@ -389,7 +373,9 @@ while ($TimeNow -le $TimeEnd) {
                     else {
                         $displayname = $ParameterObject.username
                     }
-          
+
+
+                    $manager = Get-ADUser -Filter 'ObjectGUID -eq "$ParameterObject.manager"'  
                     $samAccountName = $ParameterObject.username
                     $userPrincipalName = $samtAccountName + "@" + $domainName
                     $userPassword = ConvertTo-SecureString $ParameterObject.password -AsPlainText -Force
@@ -409,7 +395,7 @@ while ($TimeNow -le $TimeEnd) {
                         -EmailAddress $ParameterObject.emailAddress `
                         -OfficePhone $ParameterObject.officePhone `
                         -MobilePhone $ParameterObject.mobilePhone `
-                        -Manager $ParameterObject.manager `
+                        -Manager $manager `
                         -Department $ParameterObject.department `
                         -EmployeeID $ParameterObject.employeeid `
                         -EmployeeNumber $ParameterObject.employeenumber `
@@ -444,13 +430,13 @@ while ($TimeNow -le $TimeEnd) {
                         -PassThru:$true
           }#>
                     $user = Get-ADUser -Identity $ParameterObject.username `
-                        -Properties GivenName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Manager, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
+                        -Properties GivenName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
                         -Server $domainControllerIP `
                         -Credential $ADcredentials
 
       
                     $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/user"
-                   # $ServiceNowURI2 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/identity"
+                    $ServiceNowURI2 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/identity"
                    
                     Write-Verbose "ServiceNow URL $ServiceNowURI"
           
@@ -477,7 +463,6 @@ while ($TimeNow -le $TimeEnd) {
                         'EmployeeNumber'        = $user.EmployeeNumber
                         'LockedOut'             = $user.LockedOut
                         'MobilePhone'           = $user.MobilePhone
-                        'Manager'               = $user.Manager
                         'Office'                = $user.Office
                         'OfficePhone'           = $user.OfficePhone
                         'PasswordExpired'       = $user.PasswordExpired
@@ -492,8 +477,8 @@ while ($TimeNow -le $TimeEnd) {
                     $body = [System.Text.Encoding]::UTF8.GetBytes($body)
                     
                     $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI -Body $body
-                    #$response2 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI2 -Body $body
-                    #$response3 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI3 -Body $body
+                    $response2 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI2 -Body $body
+                   # $response3 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI3 -Body $body
 
                     $output = $response.RawContent
                     Write-Verbose "ServiceNow output: $output"
@@ -640,37 +625,36 @@ while ($TimeNow -le $TimeEnd) {
                 
                 try {
 
-                    if(-Not [string]::IsNullOrWhiteSpace($ParameterObject.telephonenumber)){
-                        $telephone = $ParameterObject.telephonenumber
-                    }else{
+                    if(-Not [string]::IsNullOrWhiteSpace($ParameterObject.mobile)){
                         $telephone = $ParameterObject.mobile
                     }
                    
-                   $cou = $ParameterObject.usagelocation
-          if (-Not [string]::IsNullOrWhiteSpace($ParameterObject.name)){#$null -ne $ParameterObject.name -or $ParameterObject.name  -ne ' '){
+         <# if ((-Not [string]::IsNullOrWhiteSpace($ParameterObject.usertypeset)) -and $ParameterObject.usertypeset -ne 'personal account'){
+                       
+                        if($ParameterObject.usertypeset -eq "admin"){
+                            $usertypeset = "Admin"
+                        }
+                        elseif($ParameterObject.usertypeset -eq "svc"){
+                            $usertypeset = "SVC"
+                        }#>
+                        if((-Not [string]::IsNullOrWhiteSpace($ParameterObject.givenname))-and (-Not [string]::IsNullOrWhiteSpace($ParameterObject.surname))) {
+                       
+                        $displayname = $ParameterObject.givenname + " " + $ParameterObject.surname 
+                    }
+                        elseif (-Not [string]::IsNullOrWhiteSpace($ParameterObject.surname)) {
+                        $displayname = $ParameterObject.surname 
+                    }
+                        elseif(-Not [string]::IsNullOrWhiteSpace($ParameterObject.givenname)) {
+                        $displayname = $ParameterObject.givenname 
+                    } 
+                    elseif(-Not [string]::IsNullOrWhiteSpace($ParameterObject.name)){
+                        $displayname = $ParameterObject.name 
+                    
+                    }
+                     elseif (-Not [string]::IsNullOrWhiteSpace($ParameterObject.name)){#$null -ne $ParameterObject.name -or $ParameterObject.name  -ne ' '){
                          
                         $displayname = $ParameterObject.name
-                        $usernameoption2 = $ParameterObject.name
-
-                    }
-                    else {
-                       
-                         if((-Not [string]::IsNullOrWhiteSpace($ParameterObject.givenname)) -and (-Not [string]::IsNullOrWhiteSpace($ParameterObject.surname))) {
-                           
-                        $displayname = $ParameterObject.givenname + " " + $ParameterObject.surname 
-                        $usernameoption2 = $ParameterObject.givenname + " " + $ParameterObject.surname
                         
-                    }
-                    elseif (-Not [string]::IsNullOrWhiteSpace($ParameterObject.surname)) {
-                       
-                        $displayname = $ParameterObject.surname
-                        $usernameoption2 = $ParameterObject.surname
-                       
-                    }
-                    elseif(-Not [string]::IsNullOrWhiteSpace($ParameterObject.givenname)) {
-                        $displayname = $ParameterObject.givenname 
-                        $usernameoption2 = $ParameterObject.givenname 
-                    }
                     }
 
                     
@@ -680,7 +664,9 @@ while ($TimeNow -le $TimeEnd) {
                     else {
                         throw "Could not find AzureAD module. Please install this module"
                     }#>
-                    if (-Not [string]::IsNullOrWhiteSpace($ParameterObject.username)){
+
+
+                    <#if (-Not [string]::IsNullOrWhiteSpace($ParameterObject.username)){
                          if ($null -ne $ParameterObject.usertypeset -and $ParameterObject.usertypeset -ne '' -and $ParameterObject.usertypeset -ne ' ' -and $ParameterObject.usertypeset -ne 'personal account'){
                             $userName = $ParameterObject.username+"-"+$ParameterObject.usertypeset
                          }else{
@@ -690,7 +676,9 @@ while ($TimeNow -le $TimeEnd) {
                     else{
                         $string = $usernameoption2 -replace '\s',''
                         $userName = $string
-                    }
+                    }#>
+                   
+                    $userName = $ParameterObject.username
                     Write-Output "username $userName"
                     $AADdomainprinc = (Get-MgDomain | Where-Object { $_.isDefault }).Id
                     Write-Output "domain name $AADdomainprinc"
@@ -711,7 +699,8 @@ while ($TimeNow -le $TimeEnd) {
                        
                        $user = New-MgUser -DisplayName $displayname `
                                 -PasswordProfile $PasswordProfile `
-                                -AccountEnabled -MailNickName $princname `
+                                -AccountEnabled `
+                                -MailNickName $princname `
                                 -UserPrincipalName $userprinname `
                                 -City $ParameterObject.city `
                                 -CompanyName $ParameterObject.company `
@@ -841,7 +830,7 @@ while ($TimeNow -le $TimeEnd) {
             if ($ParameterObject.action -eq "Update-User") {
                 try {
                     $user = Get-ADUser -Identity $ParameterObject.user `
-                        -Properties GivenName, Surname, Description, title, office, postalcode, city, country, company, emailaddress, officephone, mobilephone, manager, department, employeeid, employeenumber `
+                        -Properties GivenName, Surname, Description, title, office, postalcode, city, country, company, emailaddress, officephone, mobilephone, department, employeeid, employeenumber `
                         -Server $domainControllerIP `
                         -Credential $ADcredentials
             
@@ -869,7 +858,7 @@ while ($TimeNow -le $TimeEnd) {
                         -Credential $ADcredentials
           
                     $user = Get-ADUser -Identity $ParameterObject.user `
-                        -Properties GivenName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Manager, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
+                        -Properties GivenName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
                         -Server $domainControllerIP `
                         -Credential $ADcredentials
       
@@ -901,7 +890,6 @@ while ($TimeNow -le $TimeEnd) {
                         'lastLogon'             = $user.lastLogon
                         'LockedOut'             = $user.LockedOut
                         'MobilePhone'           = $user.MobilePhone
-                        'Manager'               = $user.Manager
                         'Office'                = $user.Office
                         'OfficePhone'           = $user.OfficePhone
                         'PasswordExpired'       = $user.PasswordExpired
@@ -980,7 +968,7 @@ while ($TimeNow -le $TimeEnd) {
                                     }
                                      Set-MgUserManagerByRef -UserId $ParameterObject.user -BodyParameter $NewManager
           }
-                    $user = Get-MgUser -UserId $ParameterObject.user | select $properties 
+                    $user = Get-MgUser -UserId $ParameterObject.user #| select $properties 
            
                     $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/aduser"
       
@@ -1129,16 +1117,30 @@ while ($TimeNow -le $TimeEnd) {
             #set azure ad user password
             if ($ParameterObject.action -eq "Set-AzureAD-User-Password") {
                 try {
-                    $identity = $ParameterObject.user
+                    $userId = $ParameterObject.user
 					#################added###########################
-                    $method = Get-MgUserAuthenticationPasswordMethod -UserId $identity
+                   # $method = Get-MgUserAuthenticationPasswordMethod -UserId $identity
                     if ($ParameterObject.mustChange -eq $true) {
-                    Reset-MgUserAuthenticationMethodPassword -UserId $identity -RequireChangeOnNextSignIn -AuthenticationMethodId $method.id -NewPassword $ParameterObject.password
+                    $params = @{
+	                        passwordProfile = @{
+		                    forceChangePasswordNextSignIn = $true
+		                    password = $ParameterObject.password
+	                        }
+}                   
+
+                    Update-MgUser -UserId $userId -BodyParameter $params
                 
                         Write-Output "User must change password at next login"
                     }
                     if ($ParameterObject.mustChange -eq $false) {
-                        Reset-MgUserAuthenticationMethodPassword -UserId $identity -AuthenticationMethodId $method.id -NewPassword $ParameterObject.password
+                        $params = @{
+	                        passwordProfile = @{
+		                    forceChangePasswordNextSignIn = $false
+		                    password = $ParameterObject.password
+	                    }
+}
+
+Update-MgUser -UserId $userId -BodyParameter $params
                     }
                     SNComplete $jobQueueItem.sys_id
                 }
@@ -1237,12 +1239,10 @@ while ($TimeNow -le $TimeEnd) {
             #
             #
 
-            if ($ParameterObject.action -eq "Import-Users") {
+            if ($ParameterObject.action -eq "Initial-Import-Users") {
                 try {
-                    $When = ((Get-Date).AddDays(-1)).Date
-		    #$users = Get-ADUser -Filter {whenCreated -ge $When} `
                     $users = Get-ADUser -Filter * `
-                        -Properties whenCreated, GivenName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, accountExpires, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
+                        -Properties GivenName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, accountExpires, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
                         -Server $domainControllerIP `
                         -Credential $ADcredentials
       
@@ -1277,7 +1277,74 @@ while ($TimeNow -le $TimeEnd) {
                             'lastLogon'             = $user.lastLogon
                             'LockedOut'             = $user.LockedOut
                             'MobilePhone'           = $user.MobilePhone
-                            'Manager'               = $user.Manager
+                            'Office'                = $user.Office
+                            'OfficePhone'           = $user.OfficePhone
+                            'PasswordExpired'       = $user.PasswordExpired
+                            'PasswordNeverExpires'  = $user.PasswordNeverExpires
+                            'PostalCode'            = $user.PostalCode
+                            'Title'                 = $user.Title
+                            'Path'                  = $user.DistinguishedName
+                        }
+                        $json = $userInput | ConvertTo-Json
+                        $body = [regex]::Replace($json, '(?<=")(.*?)(?=":)', { $args[0].Groups[1].Value.ToLower().replace(' ', '_') })
+                        Write-Verbose "ServiceNow input: $body"
+                        $body = [System.Text.Encoding]::UTF8.GetBytes($body)
+                        $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI -Body $body
+                      #  $response2 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI2 -Body $body
+                      #  $response3 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI3 -Body $body
+                        $output = $response.RawContent
+                        Write-Verbose "ServiceNow output: $output"
+                    }
+          
+                    $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/user/cleanup"
+                    $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PATCH' -Uri $ServiceNowURI
+                   # $ServiceNowURI2 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/identity/cleanup"
+                   # $response2 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PATCH' -Uri $ServiceNowURI2
+                    SNComplete $jobQueueItem.sys_id
+                }
+                catch {
+                    Write-Error ("Exception caught at line $($_.InvocationInfo.ScriptLineNumber), $($_.Exception.Message)")
+                    SNFail $jobQueueItem.sys_id
+                }
+            }
+
+
+            if ($ParameterObject.action -eq "Import-Users") {
+                try {
+                   
+                    $users = Get-ADUser -Filter * -Properties whenCreated, description | Where-Object {$_.whenCreated -ge ((Get-Date).AddDays(-30)).Date} |select GivenName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, accountExpires, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title 
+      
+                    $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/user"
+                   # $ServiceNowURI2 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/identity"
+                  #  $ServiceNowURI3 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/adidentitylink"
+           
+                    foreach ($user in $users) {
+                        $userInput = @{
+                            'Domain'                = $domainID
+                            'GivenName'             = $user.GivenName
+                            'Surname'               = $user.Surname
+                            'UserPrincipalName'     = $user.UserPrincipalName
+                            'Enabled'               = $user.Enabled
+                            'SamAccountName'        = $user.SamAccountName
+                            'DistinguishedName'     = $user.DistinguishedName
+                            'Name'                  = $user.Name
+                            'ObjectClass'           = $user.ObjectClass
+                            'ObjectGuid'            = $user.ObjectGuid
+                            'AccountExpirationDate' = $user.AccountExpirationDate
+                            'accountExpires'        = $user.accountExpires
+                            'AccountLockoutTime'    = $user.AccountLockoutTime
+                            'CannotChangePassword'  = $user.CannotChangePassword
+                            'City'                  = $user.City
+                            'Company'               = $user.Company
+                            'Country'               = $user.Country
+                            'Department'            = $user.Department
+                            'Description'           = $user.Description
+                            'EmailAddress'          = $user.EmailAddress
+                            'EmployeeID'            = $user.EmployeeID
+                            'EmployeeNumber'        = $user.EmployeeNumber
+                            'lastLogon'             = $user.lastLogon
+                            'LockedOut'             = $user.LockedOut
+                            'MobilePhone'           = $user.MobilePhone
                             'Office'                = $user.Office
                             'OfficePhone'           = $user.OfficePhone
                             'PasswordExpired'       = $user.PasswordExpired
@@ -1310,7 +1377,7 @@ while ($TimeNow -le $TimeEnd) {
             }
             #
             #Import azure AD Users
-            if ($ParameterObject.action -eq "Import-AzureAD-Users") {
+            if ($ParameterObject.action -eq "Initial-Import-AzureAD-Users") {
                 try {
                     <#if (Get-Module -ListAvailable -Name "AzureAD") {
                         Write-Verbose "Found AzureAD module"
@@ -1365,6 +1432,8 @@ while ($TimeNow -le $TimeEnd) {
                              $roleadmin = "Admin"
                          }
                          
+                         $mfasms =  Get-MgUserAuthenticationPhoneMethod -UserId $user.UserPrincipalName | Select-Object @{ N='UserPrincipalName'; E={ $user.UserPrincipalName }}, ID, PhoneNumber, PhoneType
+                        
                         #$employeeId = $UserExtProperties["employeeId"]
                         $userInput = @{
                             'ObjectGuid'        = $user.Id
@@ -1387,6 +1456,7 @@ while ($TimeNow -le $TimeEnd) {
                             'UserType'          =$user.UserType
                             'EmployeeID'        = $user.EmployeeId
                             'role'              = $roleadmin
+                            'mfasms'            = $mfasms.PhoneNumber
                         }
 
                         
@@ -1423,6 +1493,120 @@ while ($TimeNow -le $TimeEnd) {
             #
             #
             #
+
+             if ($ParameterObject.action -eq "Import-AzureAD-Users") {
+                try {
+                    <#if (Get-Module -ListAvailable -Name "AzureAD") {
+                        Write-Verbose "Found AzureAD module"
+                    }
+                    else {
+                        Install-Module -Name "AzureAD"
+                        throw "Could not find AzureAD module. Please install this module"
+                    }#>
+	$ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/syncstate/updating"
+      
+        Write-Verbose $ServiceNowURI
+        $response = Invoke-RestMethod -Method "PATCH" -Uri $ServiceNowURI -Headers $ServiceNowHeaders | ConvertTo-Json
+    
+                    $properties = @(
+                        'Id',
+                        'Name',
+                        'DisplayName',
+                        'givenname',
+                        'surname',
+                        'userprincipalname',
+                        'Mail',
+                        'MailNickname',
+                        'JobTitle',
+                        'Department',
+                        'Mobile',
+                        'StreetAddress',
+                        'City',
+                        'PostalCode',
+                        'state',
+                        'Country',
+                        'EmployeeId',
+                        'UserType',
+                        'AccountEnabled'
+                    )
+                    $users = Get-MgUser | Where-Object {$_.whenCreated -ge ((Get-Date).AddDays(-30)).Date} | select $properties 
+                   
+                    $ServiceNowURI = "https://$instance.service-now.com//api/x_autps_active_dir/domain/$domainID/aduser"
+                   # $ServiceNowURI2 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/identity"
+                   # $ServiceNowURI3 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/identitylink"
+                    
+                   
+                    foreach ($user in $users) {
+                      
+                        $UserExtProperties = Get-MgUserExtension -UserId $user.Id
+                        Import-Module Microsoft.Graph.DeviceManagement.Enrolment
+                        $objectid = $user.Id
+                       
+                        $responserole = Get-MgRoleManagementDirectoryRoleAssignment -CountVariable $true -Filter "principalId eq '$objectid'" 
+                        $roleadmin = "User"
+                       
+                         if($responserole.roleDefinitionId -eq '62e90394-69f5-4237-9190-012177145e10'){
+                             $roleadmin = "Admin"
+                         }
+                         
+                         $mfasms =  Get-MgUserAuthenticationPhoneMethod -UserId $user.UserPrincipalName | Select-Object @{ N='UserPrincipalName'; E={ $user.UserPrincipalName }}, ID, PhoneNumber, PhoneType
+                        
+                        #$employeeId = $UserExtProperties["employeeId"]
+                        $userInput = @{
+                            'ObjectGuid'        = $user.Id
+                            'Domain'            = $domainID
+                            'GivenName'         = $user.givenname
+                            'Surname'           = $user.surname
+                            'UserPrincipalName' = $user.UserPrincipalName
+                            'Enabled'           = $user.AccountEnabled
+                            'Name'              = $user.DisplayName
+                            'City'              = $user.City
+                            'Company'           = $user.CompanyName
+                            'Country'           = $user.Country
+                            'Email'				= $user.Mail
+                            'Department'        = $user.Department
+                            'Description'       = $user.Description
+                            'MailNickName'      = $user.MailNickname
+                            'Mobile'            = $user.Mobile
+                            'PostalCode'        = $user.PostalCode
+                            'Title'             = $user.JobTitle
+                            'UserType'          =$user.UserType
+                            'EmployeeID'        = $user.EmployeeId
+                            'role'              = $roleadmin
+                            'mfasms'            = $mfasms.PhoneNumber
+                        }
+
+                        
+                         
+                        $json = $userInput | ConvertTo-Json
+                       
+                        $body = [regex]::Replace($json, '(?<=")(.*?)(?=":)', { $args[0].Groups[1].Value.ToLower().replace(' ', '_') })
+                        Write-Verbose "ServiceNow input: $body"
+                        $body = [System.Text.Encoding]::UTF8.GetBytes($body)
+                        $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI -Body $body
+                      #  $response2 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI2 -Body $body
+                      #  $response3 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI3 -Body $body
+            
+                        $output = $response.RawContent
+                        Write-Verbose "ServiceNow output: $output"
+                    }
+          
+                    $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/aduser/cleanup"
+                    $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PATCH' -Uri $ServiceNowURI
+                   # $ServiceNowURI2 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/identity/cleanup"
+                   # $response2 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PATCH' -Uri $ServiceNowURI2
+                    SNComplete $jobQueueItem.sys_id
+                    $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/syncstate/ready"
+      
+        Write-Verbose $ServiceNowURI
+        $response = Invoke-RestMethod -Method "PATCH" -Uri $ServiceNowURI -Headers $ServiceNowHeaders | ConvertTo-Json
+    
+                }
+                catch {
+                    Write-Error ("Exception caught at line $($_.InvocationInfo.ScriptLineNumber), $($_.Exception.Message)")
+                    throw
+                }
+            }
 
             if ($ParameterObject.action -eq "Create-Group") {
                 try {
@@ -1490,11 +1674,12 @@ while ($TimeNow -le $TimeEnd) {
             #
             #Create azure ad group
             if ($ParameterObject.action -eq "Create-AzureAD-Group") {
-                try {
+               
+                   try {
                    if ( $ParameterObject.isassignabletorole -eq 'true'){
-                       $createGroup = New-MgGroup -DisplayName $ParameterObject.name  -MailNickName $ParameterObject.mailnickname -MailEnabled:$false -SecurityEnabled -IsAssignableToRole
+                       $createGroup = New-MgGroup -DisplayName $ParameterObject.name  -MailNickName $ParameterObject.mailnickname -Description $ParameterObject.description -MailEnabled:$false -SecurityEnabled -IsAssignableToRole
                    }else{
-                       $createGroup = New-MgGroup -DisplayName $ParameterObject.name  -MailNickName $ParameterObject.mailnickname -MailEnabled:$false -SecurityEnabled
+                       $createGroup = New-MgGroup -DisplayName $ParameterObject.name  -MailNickName $ParameterObject.mailnickname -Description $ParameterObject.description -MailEnabled:$false -SecurityEnabled
                    }
                     
                     $group = Get-MgGroup -GroupId $createGroup.Id 
@@ -1809,7 +1994,7 @@ while ($TimeNow -le $TimeEnd) {
             #Import AzureAD group
             #
             #
-            if ($ParameterObject.action -eq "Import-AzureAD-Groups") {
+            if ($ParameterObject.action -eq "Initial-Import-AzureAD-Groups") {
         
                 try {
                     <#if (Get-Module -ListAvailable -Name "AzureAD") {
@@ -1886,10 +2071,83 @@ while ($TimeNow -le $TimeEnd) {
             #
             #
             #
-            if ($ParameterObject.action -eq "Import-Groups") {
+             if ($ParameterObject.action -eq "Import-AzureAD-Groups") {
+        
                 try {
-                    $When = ((Get-Date).AddDays(-30)).Date
-		    #$groups = Get-ADGroup -Filter {whenChanged -ge $When} `
+                    <#if (Get-Module -ListAvailable -Name "AzureAD") {
+                        Write-Verbose "Found AzureAD module"
+                    }
+                    else {
+                        Install-Module -Name "AzureAD"
+                        throw "Could not find AzureAD module. Please install this module"
+                    }#>
+		$ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/syncstate/updating"
+      
+        Write-Verbose $ServiceNowURI
+        $response = Invoke-RestMethod -Method "PATCH" -Uri $ServiceNowURI -Headers $ServiceNowHeaders | ConvertTo-Json
+    
+                    $groups = Get-MgGroup -All | Where-Object {$_.whenCreated -ge ((Get-Date).AddDays(-30)).Date} 
+      
+          
+                    $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/adgroup"
+		  
+           
+                    foreach ($group in $groups) {
+			 
+                        $groupInput = @{
+                            'Domain'          = $domainID     
+                            'Name'            = $group.DisplayName
+                            'ObjectGuid'      = $group.Id
+                            'Description'     = $group.Description
+                            'MailEnabled'     = $group.MailEnabled
+                            'MailNickName'    = $group.mailNickname
+                            'SecurityEnabled' = $group.SecurityEnabled
+                            'IsAssignableToRole' =$group.IsAssignableToRole
+                        }
+                        $json = $groupInput | ConvertTo-Json
+                        $body = [regex]::Replace($json, '(?<=")(.*?)(?=":)', { $args[0].Groups[1].Value.ToLower().replace(' ', '_') })
+                        Write-Verbose "Servicenow input: $body"
+                        $body = [System.Text.Encoding]::UTF8.GetBytes($body)
+                        $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI -Body $body
+                        if ($response.result.sync_policy -gt 0) {
+                            $groupMembers = Get-MgGroupMember -GroupId $group.Id
+                            $ServiceNowGroupMemberURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/adgroupmember"
+                            foreach ($member in $groupMembers) {
+                                if ($null -ne $member.ObjectClass) {
+                                    $memberInput = @{
+                                        'Domain'      = $domainID 
+                                        'GroupGUID'   = $group.Id    
+                                        'Name'        = $member.DisplayName
+                                        'Description' = $member.Description
+                                        'ObjectGuid'  = $member.Id
+                                    }
+                                    $gmjson = $memberInput | ConvertTo-Json
+                                    $gmbody = [regex]::Replace($gmjson, '(?<=")(.*?)(?=":)', { $args[0].Groups[1].Value.ToLower().replace(' ', '_') })
+                                    Write-Verbose "ServiceNow groupmember input: $gmbody"
+                                    $gmbody = [System.Text.Encoding]::UTF8.GetBytes($gmbody)
+                                    $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowGroupMemberURI -Body $gmbody
+                                }
+                            }
+                        }
+                    }
+                    $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/adgroup/cleanup"
+                    $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PATCH' -Uri $ServiceNowURI
+                    SNComplete $jobQueueItem.sys_id
+                    $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/syncstate/ready"
+      
+        Write-Verbose $ServiceNowURI
+        $response = Invoke-RestMethod -Method "PATCH" -Uri $ServiceNowURI -Headers $ServiceNowHeaders | ConvertTo-Json
+    
+                }
+                catch {
+                    Write-Error ("Exception caught at line $($_.InvocationInfo.ScriptLineNumber), $($_.Exception.Message)")
+                    SNFail $jobQueueItem.sys_id
+                }
+            }
+
+
+            if ($ParameterObject.action -eq "Initial-Import-Groups") {
+                try {
                     $groups = Get-ADGroup -Filter * `
                         -Properties Description `
                         -Server $domainControllerIP `
@@ -1947,8 +2205,66 @@ while ($TimeNow -le $TimeEnd) {
                 }
             }
       
+
+       if ($ParameterObject.action -eq "Import-Groups") {
+                try {
+                    $groups = Get-ADGroup -Filter * `
+                        -Properties whenCreated, description | Where-Object {$_.whenCreated -ge ((Get-Date).AddDays(-30)).Date} 
+                        
+                    $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/group"
+           
+                    foreach ($group in $groups) {
+                        $groupInput = @{
+                            'Domain'            = $domainID
+                            'GroupScope'        = $group.GroupScope
+                            'GroupCategory'     = $group.GroupCategory
+                            'SamAccountName'    = $group.SamAccountName
+                            'DistinguishedName' = $group.DistinguishedName
+                            'ObjectClass'       = $group.ObjectClass
+                            'ObjectGuid'        = $group.ObjectGuid
+                            'Name'              = $group.Name
+                            'Description'       = $group.Description
+                        }
+                        $json = $groupInput | ConvertTo-Json
+                        $body = [regex]::Replace($json, '(?<=")(.*?)(?=":)', { $args[0].Groups[1].Value.ToLower().replace(' ', '_') })
+                        Write-Verbose "Servicenow input: $body"
+                        $body = [System.Text.Encoding]::UTF8.GetBytes($body)
+                        $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI -Body $body
+                        if ($response.result.sync_policy -gt 0) {
+                            $groupMembers = Get-ADGroupMember -Server $domainControllerIP -Credential $ADcredentials -Identity $group.ObjectGuid
+                            $ServiceNowGroupMemberURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/groupmember"
+                            foreach ($member in $groupMembers) {
+                                if ($null -ne $member.ObjectClass) {
+                                    $memberInput = @{
+                                        'Domain'            = $domainID
+                                        'GroupGUID'         = $group.ObjectGuid
+                                        'SamAccountName'    = $member.SamAccountName
+                                        'DistinguishedName' = $member.DistinguishedName
+                                        'ObjectClass'       = $member.ObjectClass
+                                        'ObjectGuid'        = $member.ObjectGuid
+                                        'Name'              = $member.Name
+                                    }
+                                    $gmjson = $memberInput | ConvertTo-Json
+                                    $gmbody = [regex]::Replace($gmjson, '(?<=")(.*?)(?=":)', { $args[0].Groups[1].Value.ToLower().replace(' ', '_') })
+                                    Write-Verbose "ServiceNow groupmember input: $gmbody"
+                                    $gmbody = [System.Text.Encoding]::UTF8.GetBytes($gmbody)
+                                    $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowGroupMemberURI -Body $gmbody
+                                }
+                            }
+                        }
+                    }
+                    $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/group/cleanup"
+                    $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PATCH' -Uri $ServiceNowURI
+                    SNComplete $jobQueueItem.sys_id
+                }
+                catch {
+                    Write-Error ("Exception caught at line $($_.InvocationInfo.ScriptLineNumber), $($_.Exception.Message)")
+                    SNFail $jobQueueItem.sys_id
+                }
+            }
+      
       #import organizational unit
-      if ($ParameterObject.action -eq "Import-Organizational-Units") {
+      if ($ParameterObject.action -eq "Initial-Import-Organizational-Units") {
         
                 try {
                     
@@ -2043,8 +2359,8 @@ while ($TimeNow -le $TimeEnd) {
                     -Country $ParameterObject.country `
                     -Description $ParameterObject.description `
                     -Name $ParameterObject.name 
-
-		    $varname = $ParameterObject.name
+                    
+                    $varname = $ParameterObject.name
 
                     $OU = Get-ADOrganizationalUnit  -Filter "Name -eq '$($varname)'"
       
@@ -2129,8 +2445,7 @@ while ($TimeNow -le $TimeEnd) {
         
                 try {
                     
-		            $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/syncstate/updating"
-      
+		            
                      Write-Verbose $ServiceNowURI
                     $response = Invoke-RestMethod -Method "PATCH" -Uri $ServiceNowURI -Headers $ServiceNowHeaders | ConvertTo-Json
                     
@@ -2140,11 +2455,31 @@ while ($TimeNow -le $TimeEnd) {
                     
                     
                      SNComplete $jobQueueItem.sys_id
-                    $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/syncstate/ready"
-      
-            Write-Verbose $ServiceNowURI
-            $response = Invoke-RestMethod -Method "PATCH" -Uri $ServiceNowURI -Headers $ServiceNowHeaders | ConvertTo-Json
-    
+             
+                }
+                catch {
+                    Write-Error ("Exception caught at line $($_.InvocationInfo.ScriptLineNumber), $($_.Exception.Message)")
+                    SNFail $jobQueueItem.sys_id
+                }
+            }
+            ##
+            #
+            #
+            if ($ParameterObject.action -eq "Add-Groupto-Organizational-Unit") {
+        
+                try {
+                    
+		           
+                     Write-Verbose $ServiceNowURI
+                    $response = Invoke-RestMethod -Method "PATCH" -Uri $ServiceNowURI -Headers $ServiceNowHeaders | ConvertTo-Json
+                    
+                    $OUS = Get-ADOrganizationalUnit -Filter 'DistinguishedName -like "$ParameterObject.ou"'
+                    $User = Get-AdGroup -Filter 'DistinguishedName -eq "$ParameterObject.group"'
+                    Move-ADObject -Identity $ParameterObject.user -TargetPath $ParameterObject.ou
+                    
+                    
+                     SNComplete $jobQueueItem.sys_id
+                  
                 }
                 catch {
                     Write-Error ("Exception caught at line $($_.InvocationInfo.ScriptLineNumber), $($_.Exception.Message)")
@@ -2155,9 +2490,10 @@ while ($TimeNow -le $TimeEnd) {
             #
             #
 
-      if ($ParameterObject.action -eq "Import-AzureAD-Organizational-Units") {
+      if ($ParameterObject.action -eq "Initial-Import-AzureAD-Organizational-Units") {
         
                 try {
+                    
                     
 		$ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/syncstate/updating"
       
@@ -2197,7 +2533,7 @@ while ($TimeNow -le $TimeEnd) {
                         $body = [regex]::Replace($json, '(?<=")(.*?)(?=":)', { $args[0].Groups[1].Value.ToLower().replace(' ', '_') })
                         Write-Verbose "Servicenow input: $body"
                         $body = [System.Text.Encoding]::UTF8.GetBytes($body)
-                        $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI -Body $body
+                        $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PATCH' -Uri $ServiceNowURI -Body $body
                         
                             $OUMembers = Get-MgDirectoryAdministrativeUnitMember -AdministrativeUnitId $OU.Id #| select $properties
                             $ServiceNowOUMemberURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/adoumember"
@@ -2212,7 +2548,7 @@ while ($TimeNow -le $TimeEnd) {
                                     $gmbody = [regex]::Replace($gmjson, '(?<=")(.*?)(?=":)', { $args[0].Groups[1].Value.ToLower().replace(' ', '_') })
                                     Write-Verbose "ServiceNow OUmember input: $gmbody"
                                     $gmbody = [System.Text.Encoding]::UTF8.GetBytes($gmbody)
-                                    $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowOUMemberURI -Body $gmbody
+                                    $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PATCH' -Uri $ServiceNowOUMemberURI -Body $gmbody
                                 
                             }
                         
@@ -2368,6 +2704,7 @@ while ($TimeNow -le $TimeEnd) {
                     New-MgDirectoryAdministrativeUnitMemberByRef -AdministrativeUnitId $OU.Id -BodyParameter $params
           
                     $groupm = Get-MgGroupMember -GroupId $ParameterObject.group 
+                    Write-Output "Group Id $groupm.Id"
                        
                     $ServiceNowGroupMemberURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/adoumember"
                     $memberInput = @{
