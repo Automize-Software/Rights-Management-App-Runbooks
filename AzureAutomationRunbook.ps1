@@ -2264,7 +2264,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
             }
       
       #import organizational unit
-      if ($ParameterObject.action -eq "Initial-Import-Organizational-Units") {
+      if ($ParameterObject.action -eq "Import-Organizational-Units") {
         
                 try {
                     
@@ -2490,7 +2490,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
             #
             #
 
-      if ($ParameterObject.action -eq "Initial-Import-AzureAD-Organizational-Units") {
+      if ($ParameterObject.action -eq "Import-AzureAD-Organizational-Units") {
         
                 try {
                     
