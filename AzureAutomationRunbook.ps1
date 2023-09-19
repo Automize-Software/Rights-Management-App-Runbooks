@@ -696,7 +696,7 @@ while ($TimeNow -le $TimeEnd) {
                        #$PasswordProfile = New-Object -TypeName Microsoft.Open.AzureAD.Model.PasswordProfile
                        #$PasswordProfile.Password = $ParameterObject.password
                        
-                       
+                       if (-Not [string]::IsNullOrWhiteSpace($telephone)){
                        $user = New-MgUser -DisplayName $displayname `
                                 -PasswordProfile $PasswordProfile `
                                 -AccountEnabled `
@@ -712,7 +712,22 @@ while ($TimeNow -le $TimeEnd) {
                                 -PostalCode $ParameterObject.postalcode `
                                 -StreetAddress $ParameterObject.streetaddress `
                                 -Surname $ParameterObject.surname 
-
+                       }else{
+                            $user = New-MgUser -DisplayName $displayname `
+                                -PasswordProfile $PasswordProfile `
+                                -AccountEnabled `
+                                -MailNickName $princname `
+                                -UserPrincipalName $userprinname `
+                                -City $ParameterObject.city `
+                                -CompanyName $ParameterObject.company `
+                                -Country $ParameterObject.country `
+                                -Department $ParameterObject.department `
+                                -GivenName $ParameterObject.givenname `
+                                -JobTitle $ParameterObject.title `
+                                -PostalCode $ParameterObject.postalcode `
+                                -StreetAddress $ParameterObject.streetaddress `
+                                -Surname $ParameterObject.surname 
+                       }
                                
                               if(-Not [string]::IsNullOrWhiteSpace($ParameterObject.manager)){
                                     $manager = Get-MgUser -UserId $ParameterObject.manager
@@ -830,7 +845,7 @@ while ($TimeNow -le $TimeEnd) {
             if ($ParameterObject.action -eq "Update-User") {
                 try {
                     $user = Get-ADUser -Identity $ParameterObject.user `
-                        -Properties GivenName, Surname, Description, title, office, postalcode, city, country, company, emailaddress, officephone, mobilephone, department, employeeid, employeenumber `
+                        -Properties GivenName, Surname, Description, title, office, postalcode, city, country, company, emailaddress, officephone, mobilephone, department, employeeid, employeenumber, manager `
                         -Server $domainControllerIP `
                         -Credential $ADcredentials
             
@@ -852,6 +867,11 @@ while ($TimeNow -le $TimeEnd) {
                             }
                         }
                     } 
+                    if(-Not [string]::IsNullOrWhiteSpace($ParameterObject.manager)){
+                                    $manager = Get-ADUser -Identity $ParameterObject.manager
+                                    $user.manager = $manager
+                                    
+          }
       
                     Set-ADUser -Instance $user `
                         -Server $domainControllerIP `
@@ -1312,7 +1332,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
             if ($ParameterObject.action -eq "Import-Users") {
                 try {
                    
-                    $users = Get-ADUser -Filter * -Properties whenCreated, description | Where-Object {$_.whenCreated -ge ((Get-Date).AddDays(-30)).Date} |select GivenName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, accountExpires, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title 
+                    $users = Get-ADUser -Filter * -Properties whenCreated, description | Where-Object {$_.whenCreated -ge ((Get-Date).AddDays(-1)).Date -or $_.LastDirSyncTime -gt (Get-Date).AddDays(-1)} |select GivenName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, accountExpires, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title 
       
                     $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/user"
                    # $ServiceNowURI2 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/identity"
@@ -1529,7 +1549,9 @@ Update-MgUser -UserId $userId -BodyParameter $params
                         'UserType',
                         'AccountEnabled'
                     )
-                    $users = Get-MgUser | Where-Object {$_.whenCreated -ge ((Get-Date).AddDays(-30)).Date} | select $properties 
+
+                   
+                    $users = Get-MgUser -All | Where-Object {$_.CreatedDateTime -ge $papapa -or $_.whenChanged -ge ((Get-Date).AddDays(-1)).Date} | select $properties 
                    
                     $ServiceNowURI = "https://$instance.service-now.com//api/x_autps_active_dir/domain/$domainID/aduser"
                    # $ServiceNowURI2 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/identity"
@@ -1537,7 +1559,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
                     
                    
                     foreach ($user in $users) {
-                      
+                        Write-Output $user
                         $UserExtProperties = Get-MgUserExtension -UserId $user.Id
                         Import-Module Microsoft.Graph.DeviceManagement.Enrolment
                         $objectid = $user.Id
@@ -2086,7 +2108,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
         Write-Verbose $ServiceNowURI
         $response = Invoke-RestMethod -Method "PATCH" -Uri $ServiceNowURI -Headers $ServiceNowHeaders | ConvertTo-Json
     
-                    $groups = Get-MgGroup -All | Where-Object {$_.whenCreated -ge ((Get-Date).AddDays(-30)).Date} 
+                    $groups = Get-MgGroup -All | Where-Object {$_.CreatedDateTime -ge ((Get-Date).AddDays(-1)).Date -or $_.whenChanged -ge ((Get-Date).AddDays(-1)).Date} 
       
           
                     $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/adgroup"
@@ -2209,7 +2231,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
        if ($ParameterObject.action -eq "Import-Groups") {
                 try {
                     $groups = Get-ADGroup -Filter * `
-                        -Properties whenCreated, description | Where-Object {$_.whenCreated -ge ((Get-Date).AddDays(-30)).Date} 
+                        -Properties whenCreated, description | Where-Object {$_.whenCreated -ge ((Get-Date).AddDays(-1)).Date -or $_.whenChanged -ge ((Get-Date).AddDays(-1)).Date} 
                         
                     $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/group"
            
@@ -2442,17 +2464,27 @@ Update-MgUser -UserId $userId -BodyParameter $params
             #
 
              if ($ParameterObject.action -eq "Add-Userto-Organizational-Unit") {
-        
+               
                 try {
-                    
-		            
                      Write-Verbose $ServiceNowURI
                     $response = Invoke-RestMethod -Method "PATCH" -Uri $ServiceNowURI -Headers $ServiceNowHeaders | ConvertTo-Json
                     
-                    $OUS = Get-ADOrganizationalUnit -Filter 'DistinguishedName -like "$ParameterObject.ou"'
-                    $User = Get-AdUser -Filter 'DistinguishedName -eq "$ParameterObject.user"'
-                    Move-ADObject -Identity $ParameterObject.user -TargetPath $ParameterObject.ou
+                    $OUSselected = Get-ADOrganizationalUnit -Filter 'DistinguishedName -like "$ParameterObject.ou"'
+
+		             $OUS = Get-ADOrganizationalUnit -Filter * #'Name -like "*"'
+                    #$OUS = Get-ADObject -Filter { ObjectClass -eq 'organizationalunit' }
+                    $exist = $false;
                     
+                    foreach ($OU in $OUS) {
+                       
+                    if( Get-AdUser -Filter 'DistinguishedName -eq "$ParameterObject.user"' -SearchBase $OU.DistinguishedName ){
+                         Write-Host "$user exists in OU: $OU.DistinguishedName"
+                         $exist = $true;
+                    }
+                    }
+                    if($exist -eq $false){
+                    Move-ADObject -Identity $ParameterObject.user -TargetPath $ParameterObject.ou
+                    }
                     
                      SNComplete $jobQueueItem.sys_id
              
@@ -2462,6 +2494,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
                     SNFail $jobQueueItem.sys_id
                 }
             }
+             
             ##
             #
             #
