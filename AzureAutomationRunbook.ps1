@@ -2605,7 +2605,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
                         $body = [regex]::Replace($json, '(?<=")(.*?)(?=":)', { $args[0].Groups[1].Value.ToLower().replace(' ', '_') })
                         Write-Verbose "Servicenow input: $body"
                         $body = [System.Text.Encoding]::UTF8.GetBytes($body)
-                        $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PATCH' -Uri $ServiceNowURI -Body $body
+                        $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI -Body $body
                         
                             $OUMembers = Get-MgDirectoryAdministrativeUnitMember -AdministrativeUnitId $OU.Id #| select $properties
                             $ServiceNowOUMemberURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/adoumember"
@@ -2620,7 +2620,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
                                     $gmbody = [regex]::Replace($gmjson, '(?<=")(.*?)(?=":)', { $args[0].Groups[1].Value.ToLower().replace(' ', '_') })
                                     Write-Verbose "ServiceNow OUmember input: $gmbody"
                                     $gmbody = [System.Text.Encoding]::UTF8.GetBytes($gmbody)
-                                    $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PATCH' -Uri $ServiceNowOUMemberURI -Body $gmbody
+                                    $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowOUMemberURI -Body $gmbody
                                 
                             }
                         
