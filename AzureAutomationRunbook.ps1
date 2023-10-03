@@ -2607,6 +2607,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
                         $body = [System.Text.Encoding]::UTF8.GetBytes($body)
                         $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI -Body $body
                         
+                        
                             $OUMembers = Get-MgDirectoryAdministrativeUnitMember -AdministrativeUnitId $OU.Id #| select $properties
                             $ServiceNowOUMemberURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/adoumember"
                             foreach ($member in $OUMembers) {
