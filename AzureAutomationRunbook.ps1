@@ -362,13 +362,13 @@ while ($TimeNow -le $TimeEnd) {
                 try {
           
                     if ($null -ne $ParameterObject.givenname -and $null -ne $ParameterObject.surname -and $ParameterObject.givenname -ne '' -and $ParameterObject.surname -ne '') {
-                        $displayname = $ParameterObject.givenname + " " + $ParameterObject.surname + " (" + $ParameterObject.username + ")"
+                        $displayname = $ParameterObject.givenname + " " + $ParameterObject.surname #+ " (" + $ParameterObject.username + ")"
                     }
                     elseif ($null -ne $ParameterObject.surname -and $ParameterObject.surname -ne '') {
-                        $displayname = $ParameterObject.surname + " (" + $ParameterObject.username + ")"
+                        $displayname = $ParameterObject.surname #+ " (" + $ParameterObject.username + ")"
                     }
                     elseif ($null -ne $ParameterObject.givenname -and $ParameterObject.givenname -ne '') {
-                        $displayname = $ParameterObject.givenname + " (" + $ParameterObject.username + ")"
+                        $displayname = $ParameterObject.givenname #+ " (" + $ParameterObject.username + ")"
                     }
                     else {
                         $displayname = $ParameterObject.username
@@ -852,7 +852,7 @@ while ($TimeNow -le $TimeEnd) {
             if ($ParameterObject.action -eq "Update-User") {
                 try {
                     $user = Get-ADUser -Identity $ParameterObject.user `
-                        -Properties GivenName, Surname, Description, title, office, postalcode, city, country, company, emailaddress, officephone, mobilephone, department, employeeid, employeenumber, manager `
+                        -Properties GivenName, Surname, Description, DisplayName, title, office, postalcode, city, country, company, emailaddress, officephone, mobilephone, department, employeeid, employeenumber, manager `
                         -Server $domainControllerIP `
                         -Credential $ADcredentials
             
@@ -885,7 +885,7 @@ while ($TimeNow -le $TimeEnd) {
                         -Credential $ADcredentials
           
                     $user = Get-ADUser -Identity $ParameterObject.user `
-                        -Properties GivenName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
+                        -Properties GivenName, Surname, UserPrincipalName, DisplayName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
                         -Server $domainControllerIP `
                         -Credential $ADcredentials
       
@@ -900,7 +900,7 @@ while ($TimeNow -le $TimeEnd) {
                         'Enabled'               = $user.Enabled
                         'SamAccountName'        = $user.SamAccountName
                         'DistinguishedName'     = $user.DistinguishedName
-                        'Name'                  = $user.Name
+                        'Name'                  = $user.DisplayName
                         'ObjectClass'           = $user.ObjectClass
                         'ObjectGuid'            = $user.ObjectGuid
                         'AccountExpirationDate' = $user.AccountExpirationDate
@@ -1272,7 +1272,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
             if ($ParameterObject.action -eq "Initial-Import-Users") {
                 try {
                     $users = Get-ADUser -Filter * `
-                        -Properties GivenName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, accountExpires, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
+                        -Properties GivenName, SamAccountName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, DisplayName, ObjectClass, ObjectGuid, AccountExpirationDate, accountExpires, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
                         -Server $domainControllerIP `
                         -Credential $ADcredentials
       
@@ -1281,15 +1281,16 @@ Update-MgUser -UserId $userId -BodyParameter $params
                   #  $ServiceNowURI3 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/adidentitylink"
            
                     foreach ($user in $users) {
-                        $userInput = @{
+                         $userInput = @{
                             'Domain'                = $domainID
                             'GivenName'             = $user.GivenName
                             'Surname'               = $user.Surname
                             'UserPrincipalName'     = $user.UserPrincipalName
+                            'username'              = $user.SamAccountName
                             'Enabled'               = $user.Enabled
                             'SamAccountName'        = $user.SamAccountName
                             'DistinguishedName'     = $user.DistinguishedName
-                            'Name'                  = $user.Name
+                            'Name'                  = $user.DisplayName
                             'ObjectClass'           = $user.ObjectClass
                             'ObjectGuid'            = $user.ObjectGuid
                             'AccountExpirationDate' = $user.AccountExpirationDate
@@ -1342,7 +1343,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
             if ($ParameterObject.action -eq "Import-Users") {
                 try {
                    
-                    $users = Get-ADUser -Filter * -Properties whenCreated, description | Where-Object {$_.whenCreated -ge ((Get-Date).AddDays(-1)).Date -or $_.LastDirSyncTime -gt (Get-Date).AddDays(-1)} |select GivenName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, accountExpires, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title 
+                    $users = Get-ADUser -Filter * -Properties whenCreated, description | Where-Object {$_.whenCreated -ge ((Get-Date).AddDays(-1)).Date -or $_.LastDirSyncTime -gt (Get-Date).AddDays(-1)} |select GivenName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, DisplayName, ObjectClass, ObjectGuid, AccountExpirationDate, accountExpires, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title 
       
                     $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/user"
                    # $ServiceNowURI2 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/identity"
@@ -1355,9 +1356,10 @@ Update-MgUser -UserId $userId -BodyParameter $params
                             'Surname'               = $user.Surname
                             'UserPrincipalName'     = $user.UserPrincipalName
                             'Enabled'               = $user.Enabled
+                            'username'              = $user.SamAccountName
                             'SamAccountName'        = $user.SamAccountName
                             'DistinguishedName'     = $user.DistinguishedName
-                            'Name'                  = $user.Name
+                            'Name'                  = $user.DisplayName
                             'ObjectClass'           = $user.ObjectClass
                             'ObjectGuid'            = $user.ObjectGuid
                             'AccountExpirationDate' = $user.AccountExpirationDate
@@ -1463,7 +1465,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
                          }
                          
                          $mfasms =  Get-MgUserAuthenticationPhoneMethod -UserId $user.UserPrincipalName | Select-Object @{ N='UserPrincipalName'; E={ $user.UserPrincipalName }}, ID, PhoneNumber, PhoneType
-                        
+                        $userprincname = $user.UserPrincipalName
                         #$employeeId = $UserExtProperties["employeeId"]
                         $userInput = @{
                             'ObjectGuid'        = $user.Id
@@ -1471,6 +1473,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
                             'GivenName'         = $user.givenname
                             'Surname'           = $user.surname
                             'UserPrincipalName' = $user.UserPrincipalName
+                            'Username'          = $userprincname.Substring(0, $userprincname.IndexOf('@'))
                             'Enabled'           = $user.AccountEnabled
                             'Name'              = $user.DisplayName
                             'City'              = $user.City
@@ -1585,7 +1588,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
                          }
                          
                          $mfasms =  Get-MgUserAuthenticationPhoneMethod -UserId $user.UserPrincipalName | Select-Object @{ N='UserPrincipalName'; E={ $user.UserPrincipalName }}, ID, PhoneNumber, PhoneType
-                        
+                        $userprincname = $user.UserPrincipalName
                         #$employeeId = $UserExtProperties["employeeId"]
                         $userInput = @{
                             'ObjectGuid'        = $user.Id
@@ -1593,6 +1596,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
                             'GivenName'         = $user.givenname
                             'Surname'           = $user.surname
                             'UserPrincipalName' = $user.UserPrincipalName
+                            'Username'          = $userprincname.Substring(0, $userprincname.IndexOf('@'))
                             'Enabled'           = $user.AccountEnabled
                             'Name'              = $user.DisplayName
                             'City'              = $user.City
