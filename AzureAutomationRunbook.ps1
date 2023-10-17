@@ -390,7 +390,6 @@ while ($TimeNow -le $TimeEnd) {
                         -Office $ParameterObject.office `
                         -PostalCode $ParameterObject.postalcode `
                         -City $ParameterObject.city `
-                        -Country $ParameterObject.country `
                         -Company $ParameterObject.company `
                         -EmailAddress $ParameterObject.emailAddress `
                         -OfficePhone $ParameterObject.officePhone `
@@ -404,6 +403,10 @@ while ($TimeNow -le $TimeEnd) {
                         -Enabled:$true `
                         -ChangePasswordAtLogon:$false `
                         -PassThru:$true
+
+
+
+                        
           <#}else{
               $createUser = New-ADUser -SamAccountName $samAccountName `
                         -Server $domainControllerIP `
@@ -434,6 +437,15 @@ while ($TimeNow -le $TimeEnd) {
                         -Server $domainControllerIP `
                         -Credential $ADcredentials
 
+
+                    if(-Not [string]::IsNullOrWhiteSpace($ParameterObject.country)){
+                                    $coun = $countries | Where-Object {$_.EnglishName -eq $ParameterObject.country}
+                                    $cou = $coun.TwoLetterISORegionName
+                                    $user.country = $cou
+                                   
+                                    Set-ADUser -Instance $user
+
+                                }
       
                     $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/user"
                     $ServiceNowURI2 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/identity"
@@ -764,6 +776,12 @@ while ($TimeNow -le $TimeEnd) {
                                    Update-MgUser -UserId $user.Id -PreferredLanguage $ParameterObject.preferredlang
 
                                 }
+
+                                
+                   if(-Not [string]::IsNullOrWhiteSpace($ParameterObject.mfa)){
+                                    
+                                 New-MgUserAuthenticationPhoneMethod -UserId $user.Id -PhoneType Mobile -PhoneNumber $ParameterObject.mfa
+                                 }
                                 <# if(-Not [string]::IsNullOrWhiteSpace($ParameterObject.mobile)){
                                     
                                  New-MgUserAuthenticationPhoneMethod -UserId $user.Id -PhoneType Mobile -PhoneNumber $ParameterObject.mobile
@@ -879,6 +897,13 @@ while ($TimeNow -le $TimeEnd) {
                                     $user.manager = $manager
                                     
           }
+          if(-Not [string]::IsNullOrWhiteSpace($ParameterObject.country)){
+                                    $coun = $countries | Where-Object {$_.EnglishName -eq $ParameterObject.country}
+                                    $cou = $coun.TwoLetterISORegionName
+                                    $user.country = $cou
+                                   
+
+                                }
       
                     Set-ADUser -Instance $user `
                         -Server $domainControllerIP `
@@ -983,10 +1008,15 @@ while ($TimeNow -le $TimeEnd) {
                             
                         }
                        
-                    } 
-                    
+                    }
+                    $cou = " "
+                    if(-Not [string]::IsNullOrWhiteSpace($ParameterObject.country)){
+                                    $coun = $countries | Where-Object {$_.EnglishName -eq $ParameterObject.country}
+                                    $cou = $coun.TwoLetterISORegionName
+
+                                }
                     Update-MgUser -UserId $ParameterObject.user -DisplayName $ParameterObject.displayname -GivenName $ParameterObject.givenname -Surname $ParameterObject.surname -Department $ParameterObject.department -JobTitle $ParameterObject.jobtitle `
-                        -City $ParameterObject.city -PostalCode $ParameterObject.postalcode -Country $ParameterObject.country -CompanyName $ParameterObject.companyname -MobilePhone $ParameterObject.mobilephone -StreetAddress $ParameterObject.streetaddress
+                        -City $ParameterObject.city -PostalCode $ParameterObject.postalcode -Country $cou -CompanyName $ParameterObject.companyname -MobilePhone $ParameterObject.mobilephone -StreetAddress $ParameterObject.streetaddress
           if(-Not [string]::IsNullOrWhiteSpace($ParameterObject.manager)){
                                     $manager = Get-MgUser -UserId $ParameterObject.manager
                                     $mgmanager = $manager.Id
@@ -996,7 +1026,13 @@ while ($TimeNow -le $TimeEnd) {
                                      Set-MgUserManagerByRef -UserId $ParameterObject.user -BodyParameter $NewManager
           }
            if(-Not [string]::IsNullOrWhiteSpace($ParameterObject.mfa)){
-               New-MgUserAuthenticationPhoneMethod -UserId $ParameterObject.user -PhoneType Mobile -PhoneNumber $ParameterObject.mfa
+               $params = @{
+	                phoneNumber = $ParameterObject.mfa
+	                phoneType = "mobile"
+                }
+
+               Update-MgUserAuthenticationPhoneMethod -UserId $userId -PhoneAuthenticationMethodId "3179e48a-750b-4051-897c-87b9720928f7" -BodyParameter $params
+
            }
                     $user = Get-MgUser -UserId $ParameterObject.user #| select $properties 
            
@@ -1272,7 +1308,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
             if ($ParameterObject.action -eq "Initial-Import-Users") {
                 try {
                     $users = Get-ADUser -Filter * `
-                        -Properties GivenName, SamAccountName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, DisplayName, ObjectClass, ObjectGuid, AccountExpirationDate, accountExpires, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
+                        -Properties GivenName, SamAccountName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, DIsplayName, ObjectClass, ObjectGuid, AccountExpirationDate, accountExpires, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
                         -Server $domainControllerIP `
                         -Credential $ADcredentials
       
@@ -1812,7 +1848,11 @@ Update-MgUser -UserId $userId -BodyParameter $params
                         -Properties Description `
                         -Server $domainControllerIP `
                         -Credential $ADcredentials
-      
+
+
+                    Write-Output "Group scope category "
+                    Write-Output $group.GroupScope 
+                    Write-Output $group.GroupCategory
                     $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/group"
       
                     Write-Verbose "ServiceNow URL $ServiceNowURI"
@@ -2416,12 +2456,23 @@ Update-MgUser -UserId $userId -BodyParameter $params
             #
             if ($ParameterObject.action -eq "Create-Organizational-Unit"){
                 try{
+                    if(-Not [string]::IsNullOrWhiteSpace($ParameterObject.parent)){
                     $newOU =New-ADOrganizationalUnit  -Server $domainControllerIP `
+                        -Credential $ADcredentials  `
+                        -City $ParameterObject.city `
+                        -Path $ParameterObject.parent `
+                    -Country $ParameterObject.country `
+                    -Description $ParameterObject.description `
+                    -Name $ParameterObject.name 
+                    } 
+                    else {
+                         $newOU =New-ADOrganizationalUnit  -Server $domainControllerIP `
                         -Credential $ADcredentials  `
                         -City $ParameterObject.city `
                     -Country $ParameterObject.country `
                     -Description $ParameterObject.description `
-                    -Name $ParameterObject.name 
+                    -Name $ParameterObject.name  
+                    }
                     
                     $varname = $ParameterObject.name
 
