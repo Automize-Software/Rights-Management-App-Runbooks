@@ -448,7 +448,7 @@ while ($TimeNow -le $TimeEnd) {
                                 }
       
                     $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/user"
-                    $ServiceNowURI2 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/identity"
+                   # $ServiceNowURI2 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/identity"
                    
                     Write-Verbose "ServiceNow URL $ServiceNowURI"
           
@@ -489,7 +489,7 @@ while ($TimeNow -le $TimeEnd) {
                     $body = [System.Text.Encoding]::UTF8.GetBytes($body)
                     
                     $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI -Body $body
-                    $response2 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI2 -Body $body
+                   # $response2 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI2 -Body $body
                    # $response3 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI3 -Body $body
 
                     $output = $response.RawContent
