@@ -1031,7 +1031,7 @@ while ($TimeNow -le $TimeEnd) {
 	                phoneType = "mobile"
                 }
 
-               Update-MgUserAuthenticationPhoneMethod -UserId $userId -PhoneAuthenticationMethodId "3179e48a-750b-4051-897c-87b9720928f7" -BodyParameter $params
+               Update-MgUserAuthenticationPhoneMethod -UserId $ParameterObject.user -PhoneAuthenticationMethodId "3179e48a-750b-4051-897c-87b9720928f7" -BodyParameter $params
 
            }
                     $user = Get-MgUser -UserId $ParameterObject.user #| select $properties 
