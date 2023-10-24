@@ -489,7 +489,7 @@ while ($TimeNow -le $TimeEnd) {
                     $body = [System.Text.Encoding]::UTF8.GetBytes($body)
                     
                     $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI -Body $body
-                   # $response2 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI2 -Body $body
+                  #  $response2 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI2 -Body $body
                    # $response3 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI3 -Body $body
 
                     $output = $response.RawContent
@@ -1317,6 +1317,10 @@ Update-MgUser -UserId $userId -BodyParameter $params
                   #  $ServiceNowURI3 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/adidentitylink"
            
                     foreach ($user in $users) {
+                        Write-Output "name "
+                        Write-Output $user.Name
+                        Write-Output "Display name "
+                        Write-Output $user.DisplayName
                          $userInput = @{
                             'Domain'                = $domainID
                             'GivenName'             = $user.GivenName
@@ -3012,7 +3016,13 @@ Update-MgUser -UserId $userId -BodyParameter $params
                     if (!$user) {
                         throw "The user was not found"
                     }
-          
+
+                $userexists = Get-ADGroupMember -Identity $group | Where-Object {$_.ObjectGuid -eq $user.ObjectGuid}  
+                        if($userexists){  
+                            throw 'the user is already a member'  
+                            }  
+                     
+   
                     if ($null -ne $ParameterObject.ttl) {
                         $groupMember = Add-ADGroupMember `
                             -Identity $group.ObjectGuid `
@@ -3030,7 +3040,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
                             -Credential $ADcredentials `
                             -PassThru:$true
                     }
-          
+                
                     Write-Output $groupMember | ConvertTo-Json
           
                     $ServiceNowGroupMemberURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/groupmember"
@@ -3049,14 +3059,15 @@ Update-MgUser -UserId $userId -BodyParameter $params
                     $gmbody = [System.Text.Encoding]::UTF8.GetBytes($gmbody)
                     $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowGroupMemberURI -Body $gmbody
                     SNComplete $jobQueueItem.sys_id
-                }
+                    }
                 catch {
-                    Write-Error ("Exception caught at line $($_.InvocationInfo.ScriptLineNumber), $($_.Exception.Message)")
                     SNFail $jobQueueItem.sys_id
+                    Write-Error ("Exception caught at line $($_.InvocationInfo.ScriptLineNumber), $($_.Exception.Message)")
+                   try{
                     $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/groupmember"
       
                     Write-Verbose "ServiceNow URL $ServiceNowURI"
-          
+                    
                     $groupInput = @{
                         'sysid'      = $ParameterObject.membersysid
                         'Sync State' = "Failed"
@@ -3068,8 +3079,15 @@ Update-MgUser -UserId $userId -BodyParameter $params
                     $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PATCH' -Uri $ServiceNowURI -Body $body
                     $output = $response.RawContent
                     Write-Verbose "ServiceNow output: $output"
+                   }
+                   catch {
+                        Write-Error "Exception caught at line $($_.InvocationInfo.ScriptLineNumber), $($_.Exception.Message)"
+                    }
+
                 }
+            
             }
+            
             #
             #
             #
@@ -3090,7 +3108,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
           
                     $groupMember = New-MgGroupMember `
                         -GroupId $ParameterObject.group `
-                        -DirectoryObjectId $ParameterObject.usermember
+                        -DirectoryObjectId $ParameterObject.usermember -ErrorAction Stop
                     $groupm = Get-MgGroupMember -GroupId $ParameterObject.group 
                        
                     $ServiceNowGroupMemberURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/adgroupmember"
@@ -3106,27 +3124,39 @@ Update-MgUser -UserId $userId -BodyParameter $params
                     #Write-Output "ServiceNow groupmember input: $gmbody"
                     $gmbody = [System.Text.Encoding]::UTF8.GetBytes($gmbody)
                     $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowGroupMemberURI -Body $gmbody
+                    $output = $response.RawContent
+                    Write-Verbose "ServiceNow output: $output"
                     SNComplete $jobQueueItem.sys_id
                 }
                 catch {
-                    Write-Error ("Exception caught at line $($_.InvocationInfo.ScriptLineNumber), $($_.Exception.Message)")
                     SNFail $jobQueueItem.sys_id
-                    $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/adgroupmember"
-      
-                    Write-Verbose "ServiceNow URL $ServiceNowURI"
-          
-                    $groupInput = @{
+                    Write-Error "Exception caught at line $($_.InvocationInfo.ScriptLineNumber), $($_.Exception.Message)"
+		
+                    try {
+                        $usersysid = $ParameterObject.usersysid
+                        $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/adgroupmember"
+        
+                        Write-Verbose "ServiceNow URL $ServiceNowURI"
+            
+                        $groupInput = @{
                         'sysid'      = $ParameterObject.membersysid
                         'Sync State' = "Failed"
                     }
-                    $json = $groupInput | ConvertTo-Json
-                    $body = [regex]::Replace($json, '(?<=")(.*?)(?=":)', { $args[0].Groups[1].Value.ToLower().replace(' ', '_') })
-                    Write-Verbose "ServiceNow input: $body"
-                    $body = [System.Text.Encoding]::UTF8.GetBytes($body)
-                    $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PATCH' -Uri $ServiceNowURI -Body $body
-                    $output = $response.RawContent
-                    Write-Verbose "ServiceNow output: $output"
-                }
+                        $json = $groupInput | ConvertTo-Json
+                        $body = [regex]::Replace($json, '(?<=")(.*?)(?=":)', { $args[0].Groups[1].Value.ToLower().replace(' ', '_') })
+                        Write-Verbose "ServiceNow input: $body"
+                        $body = [System.Text.Encoding]::UTF8.GetBytes($body)
+                        $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PATCH' -Uri $ServiceNowURI -Body $body
+                       
+                        $output = $response.RawContent
+                        Write-Verbose "ServiceNow output: $output"
+                    } 
+                    catch {
+                        Write-Error "Exception caught at line $($_.InvocationInfo.ScriptLineNumber), $($_.Exception.Message)"
+                    }
+                    
+                
+            }
             }
             #
             #
