@@ -877,7 +877,7 @@ while ($TimeNow -le $TimeEnd) {
                     $ParameterObject.PSObject.Properties | ForEach-Object {
                         $parmName = $_.Name
                         $parmValue = $_.Value
-                        if ($parmName -ne "usersysid" -and $parmName -ne "action" -and $parmName -ne "user") {   
+                        if ($parmName -ne "usersysid" -and $parmName -ne "action" -and $parmName -ne "user" -and $parmName -ne "objectguid" -and $parmName -ne "fullname") {   
                             if ($parmValue -eq "") {
                                 $user.$parmName = $null
                             }
@@ -887,6 +887,7 @@ while ($TimeNow -le $TimeEnd) {
                             elseif ($parmValue -eq "true") {
                                 $user.$parmName = $true
                             }
+                           
                             else {
                                 $user.$parmName = $parmValue
                             }
@@ -908,7 +909,10 @@ while ($TimeNow -le $TimeEnd) {
                     Set-ADUser -Instance $user `
                         -Server $domainControllerIP `
                         -Credential $ADcredentials
-          
+
+                    if(-Not [string]::IsNullOrWhiteSpace($ParameterObject.fullname)){
+                        Rename-ADObject -Identity $ParameterObject.objectguid -NewName $ParameterObject.fullname -Credential $ADcredentials
+                    }
                     $user = Get-ADUser -Identity $ParameterObject.user `
                         -Properties GivenName, Surname, UserPrincipalName, DisplayName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
                         -Server $domainControllerIP `
