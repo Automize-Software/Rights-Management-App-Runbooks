@@ -6,10 +6,12 @@ param(
     [string] $snowCredentialsName, 
   
     [Parameter(Mandatory = $true)]
-    [string] $instance
+    [string] $instance,
+
+    [Parameter(Mandatory = $true)]
+    [string] $secret
+
 )
-
-
 # Load data and setup connections
 
 #ServiceNow Connection
@@ -35,7 +37,7 @@ $ADcredentialsName = $response.result.automation_credentials.display_value
 $ConnectApplicationID = $response.result.applicationid
 $Thumbprintconnection = $response.result.thumbprint
 $certname = $response.result.certificate.display_value
-$secret = $response.result.clientsecret
+
 
 
 #$TenantID = $domainName + ".onmicrosoft.com"
