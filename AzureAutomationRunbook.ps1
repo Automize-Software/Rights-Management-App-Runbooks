@@ -230,8 +230,7 @@ if($null -eq $ConnectApplicationID -or $null -eq $Thumbprintconnection ) {
             $SecuredPasswordPassword = ConvertTo-SecureString -String $SecuredPassword -AsPlainText -Force
 
             $MsalToken = Get-MsalToken -TenantId $TenantId -ClientId $ConnectApplicationID -ClientSecret ($secret | ConvertTo-SecureString -AsPlainText -Force)
-            Connect-MgGraph -AccessToken $MsalToken.AccessToken
-            #Connect-ExchangeOnline -AccessToken $MsalToken.AccessToken
+	Connect-Graph -AccessToken ($MsalToken.AccessToken| ConvertTo-SecureString -AsPlainText -Force)            #Connect-ExchangeOnline -AccessToken $MsalToken.AccessToken
         }
    
       <#  Connect-AzureAD -TenantId $TenantID -Credential $AADcredentials
