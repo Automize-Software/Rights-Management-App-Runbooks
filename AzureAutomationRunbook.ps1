@@ -13,7 +13,8 @@ param(
 
 )
 # Load data and setup connections
-
+Install-Module Microsoft.Graph.Beta -AllowPrerelease -AllowClobber -Force
+Import-Module "MSAL.PS" -Force
 #ServiceNow Connection
 $snowCredentials = Get-AutomationPSCredential -Name $snowCredentialsName
 $ServiceNowAuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $snowCredentials.UserName, $snowCredentials.GetNetworkCredential().Password)))
