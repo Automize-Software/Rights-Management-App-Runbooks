@@ -13,8 +13,11 @@ param(
 
 )
 # Load data and setup connections
-Install-Module Microsoft.Graph.Beta -AllowPrerelease -AllowClobber -Force
-Import-Module "MSAL.PS" -Force
+Install-Module Microsoft.Graph -AllowPrerelease -AllowClobber -Force
+Install-Module Microsoft.Graph.Beta -AllowClobber -Force
+Import-Module Microsoft.Graph.Groups
+Import-Module Microsoft.Graph.Users
+Import-Module Microsoft.Graph.Identity.DirectoryManagement
 #ServiceNow Connection
 $snowCredentials = Get-AutomationPSCredential -Name $snowCredentialsName
 $ServiceNowAuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $snowCredentials.UserName, $snowCredentials.GetNetworkCredential().Password)))
@@ -217,7 +220,7 @@ if($null -eq $ConnectApplicationID -or $null -eq $Thumbprintconnection ) {
         if ($null -ne $Thumbprintconnection -and $Thumbprintconnection -ne '' ){
         
        
-       Select-MgProfile –Name “beta” 
+      # Select-MgProfile –Name “beta” 
        Connect-MgGraph -ClientID $ConnectApplicationID -TenantId $TenantID -CertificateThumbprint $Thumbprintconnection
        Get-MgContext
        $Organization = (Get-MgDomain | Where-Object { $_.isDefault }).Id
