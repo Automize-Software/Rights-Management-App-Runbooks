@@ -3738,7 +3738,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
 
                 $userexists = Get-ADGroupMember -Identity $group | Where-Object {$_.ObjectGuid -eq $user.ObjectGuid}  
                 if($userexists){
-		   throw 'the user is already a member'  
+		   Write-Verbose "the user is already a member"  
                 } else {
                     if ($null -ne $ParameterObject.ttl) {
                         $groupMember = Add-ADGroupMember `
