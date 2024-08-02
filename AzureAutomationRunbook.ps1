@@ -12,8 +12,13 @@ param(
     [string] $secret
 )
 
-Install-Module Microsoft.Graph -AllowPrerelease -AllowClobber -Force
-Install-Module Microsoft.Graph.Beta -AllowClobber -Force
+if(-not (Get-Module Microsoft.Graph -ListAvailable)){
+    Install-Module Microsoft.Graph -AllowPrerelease -AllowClobber -Force
+}
+if(-not (Get-Module Microsoft.Graph.Beta -ListAvailable)){
+    Install-Module Microsoft.Graph.Beta -AllowClobber -Force
+}
+
 Import-Module Microsoft.Graph.Groups
 Import-Module Microsoft.Graph.Users
 Import-Module Microsoft.Graph.Identity.DirectoryManagement
