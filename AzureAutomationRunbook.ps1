@@ -2276,16 +2276,18 @@ Update-MgUser -UserId $userId -BodyParameter $params
                         'UserType',
                         'AccountEnabled'
                     )
-                $users = Get-MgUser -All 
-                   $users.count
-                    $ServiceNowURI = "https://$instance.service-now.com//api/x_autps_active_dir/domain/$domainID/aduser"
+                    $users = Get-MgUser -All | select $properties 
+                   
+                    $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/aduser"
                    # $ServiceNowURI2 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/identity"
                    # $ServiceNowURI3 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/identitylink"
                     
                    
                     $users | ForEach-Object -Parallel { 
-                        $userinfo = Get-MgBetaUser -UserId $_.Id -Property "displayName,accountEnabled,UserType,GivenName,Surname,UserPrincipalName,City,CompanyName,Country,Mail,Department,Description,MailNickName,Mobile,PostalCOde,JobTitle,EmployeeId" 
-                        
+                        $userinfo = Get-MgBetaUser -UserId $_.Id -Property "displayName,accountEnabled,UserType" 
+                        Write-Output $userinfo.UserType 
+                        Write-Output $userinfo.accountEnabled
+                        Write-Output $_.DisplayName $_.country $_.city $_.companyName $_.department 
                         $usertype = $userinfo.UserType 
                         $accountenabled = $userinfo.accountEnabled
                       
@@ -2294,7 +2296,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
                         #$employeeId = $UserExtProperties["employeeId"]
                         $userInput = @{
                             'ObjectGuid'        = $_.Id
-                            'Domain'            = $using:domainID
+                            'Domain'            = $domainID
                             'GivenName'         = $_.givenname
                             'Surname'           = $_.surname
                             'UserPrincipalName' = $_.UserPrincipalName
@@ -2316,19 +2318,14 @@ Update-MgUser -UserId $userId -BodyParameter $params
                             'mfasms'            = $mfasms.PhoneNumber
                         }
 
-                       
+                        
                          
                         $json = $userInput | ConvertTo-Json
-                      
+                       
                         $body = [regex]::Replace($json, '(?<=")(.*?)(?=":)', { $args[0].Groups[1].Value.ToLower().replace(' ', '_') })
-                       # Write-Output $body
                         Write-Verbose "ServiceNow input: $body"
                         $body = [System.Text.Encoding]::UTF8.GetBytes($body)
-                      #  Write-Output "servicenow uri" 
-                      #  Write-Output $using:ServiceNowURI 
-                      #  Write-Output "servicenowheaders " 
-                      #  Write-Output $using:ServiceNowHeaders
-                        $response = Invoke-RestMethod -Headers $using:ServiceNowHeaders -Method 'PUT' -Uri $using:ServiceNowURI -Body $body
+                        $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI -Body $body
                       #  $response2 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI2 -Body $body
                       #  $response3 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI3 -Body $body
             
@@ -2777,6 +2774,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
 
             if ($ParameterObject.action -eq "Create-Group") {
                 try {
+                    if($ParameterObject.path -ne ' '){
                     if ($ParameterObject.managedby -ne '') {
                     $createGroup = New-ADGroup -Name $ParameterObject.name `
                         -Server $domainControllerIP `
@@ -2796,6 +2794,27 @@ Update-MgUser -UserId $userId -BodyParameter $params
                         -GroupScope $ParameterObject.groupScope `
                         -GroupCategory $ParameterObject.groupCategory `
                         -PassThru:$true
+                    }
+                    }
+                    else{
+                       if ($ParameterObject.managedby -ne '') {
+                    $createGroup = New-ADGroup -Name $ParameterObject.name `
+                        -Server $domainControllerIP `
+                        -Credential $ADcredentials `
+                        -Description $ParameterObject.description `
+                        -GroupScope $ParameterObject.groupScope `
+                        -GroupCategory $ParameterObject.groupCategory `
+                        -ManagedBy $ParameterObject.managedby `
+                        -PassThru:$true
+                    }else{
+                        $createGroup = New-ADGroup -Name $ParameterObject.name `
+                        -Server $domainControllerIP `
+                        -Credential $ADcredentials `
+                        -Description $ParameterObject.description `
+                        -GroupScope $ParameterObject.groupScope `
+                        -GroupCategory $ParameterObject.groupCategory `
+                        -PassThru:$true
+                    } 
                     }
                     $group = Get-ADGroup -Identity $createGroup.ObjectGUID `
                         -Properties Description `
