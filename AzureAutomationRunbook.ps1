@@ -1715,7 +1715,7 @@ while ($TimeNow -le $TimeEnd) {
                     }
                     $cou = " "
                     if(-Not [string]::IsNullOrWhiteSpace($ParameterObject.country)){
-                                    $coun = $countries | Where-Object {$_.EnglishName -eq $ParameterObject.country}
+                                    $coun = $countries | Where-Object {$_.EnglishName -eq $ParameterObject.country} | Select-Object -First 1
                                     $cou = $coun.TwoLetterISORegionName
                                     Write-Output "country"
                                     Write-Output $cou
@@ -1724,7 +1724,7 @@ while ($TimeNow -le $TimeEnd) {
                                 Write-Output $ParameterObject.jobtitle
                                 Write-Output $ParameterObject.employeeid
                                 Write-Output $ParameterObject.streetaddress
-                    Update-MgUser -UserId $ParameterObject.user -DisplayName $ParameterObject.displayname -GivenName $ParameterObject.givenname -Surname $ParameterObject.surname -Department $ParameterObject.department -JobTitle $ParameterObject.jobtitle `
+                    Update-MgUser -UserId $ParameterObject.user -DisplayName $ParameterObject.displayname -GivenName $ParameterObject.givenname -Surname $ParameterObject.surname -Department $ParameterObject.department -JobTitle $ParameterObject.jobtitle -OfficeLocation $ParameterObject.officelocation `
                         -City $ParameterObject.city -PostalCode $ParameterObject.postalcode -Country $cou -CompanyName $ParameterObject.companyname -MobilePhone $ParameterObject.mobilephone -StreetAddress $ParameterObject.streetaddress -EmployeeId $ParameterObject.employeeid
           if(-Not [string]::IsNullOrWhiteSpace($ParameterObject.manager)){
                                     $manager = Get-MgUser -UserId $ParameterObject.manager
@@ -1743,6 +1743,16 @@ while ($TimeNow -le $TimeEnd) {
                Update-MgUserAuthenticationPhoneMethod -UserId $ParameterObject.user -PhoneAuthenticationMethodId "3179e48a-750b-4051-897c-87b9720928f7" -BodyParameter $params
 
            }
+            if((-Not [string]::IsNullOrWhiteSpace($ParameterObject.preferredlanguage)) -and (-Not [string]::IsNullOrWhiteSpace($ParameterObject.country))){
+                                    $ParameterObject.preferredlanguage
+                                     $coun = $countries | Where-Object {($_.LanguageName -match $ParameterObject.preferredlanguage) -and ($_.EnglishName -eq $ParameterObject.country)} | Select-Object -First 1
+                                     Write-Output "country $coun"
+                                    $language =$coun.Language
+                                    Write-Output "Language $language "
+
+                                   Update-MgUser -UserId $ParameterObject.user -PreferredLanguage $language
+
+                                }
                     $user = Get-MgUser -UserId $ParameterObject.user #| select $properties 
            
                     $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/aduser"
@@ -2276,18 +2286,16 @@ Update-MgUser -UserId $userId -BodyParameter $params
                         'UserType',
                         'AccountEnabled'
                     )
-                    $users = Get-MgUser -All | select $properties 
-                   
-                    $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/aduser"
+                $users = Get-MgUser -All 
+                   $users.count
+                    $ServiceNowURI = "https://$instance.service-now.com//api/x_autps_active_dir/domain/$domainID/aduser"
                    # $ServiceNowURI2 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/identity"
                    # $ServiceNowURI3 = "https://$instance.service-now.com/api/x_autps_active_dir/domain/identitylink"
                     
                    
                     $users | ForEach-Object -Parallel { 
-                        $userinfo = Get-MgBetaUser -UserId $_.Id -Property "displayName,accountEnabled,UserType" 
-                        Write-Output $userinfo.UserType 
-                        Write-Output $userinfo.accountEnabled
-                        Write-Output $_.DisplayName $_.country $_.city $_.companyName $_.department 
+                        $userinfo = Get-MgBetaUser -UserId $_.Id -Property "displayName,accountEnabled,UserType,GivenName,Surname,UserPrincipalName,City,CompanyName,Country,Mail,Department,Description,MailNickName,Mobile,PostalCOde,JobTitle,EmployeeId" 
+                        
                         $usertype = $userinfo.UserType 
                         $accountenabled = $userinfo.accountEnabled
                       
@@ -2296,7 +2304,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
                         #$employeeId = $UserExtProperties["employeeId"]
                         $userInput = @{
                             'ObjectGuid'        = $_.Id
-                            'Domain'            = $domainID
+                            'Domain'            = $using:domainID
                             'GivenName'         = $_.givenname
                             'Surname'           = $_.surname
                             'UserPrincipalName' = $_.UserPrincipalName
@@ -2318,14 +2326,19 @@ Update-MgUser -UserId $userId -BodyParameter $params
                             'mfasms'            = $mfasms.PhoneNumber
                         }
 
-                        
+                       
                          
                         $json = $userInput | ConvertTo-Json
-                       
+                      
                         $body = [regex]::Replace($json, '(?<=")(.*?)(?=":)', { $args[0].Groups[1].Value.ToLower().replace(' ', '_') })
+                       # Write-Output $body
                         Write-Verbose "ServiceNow input: $body"
                         $body = [System.Text.Encoding]::UTF8.GetBytes($body)
-                        $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI -Body $body
+                      #  Write-Output "servicenow uri" 
+                      #  Write-Output $using:ServiceNowURI 
+                      #  Write-Output "servicenowheaders " 
+                      #  Write-Output $using:ServiceNowHeaders
+                        $response = Invoke-RestMethod -Headers $using:ServiceNowHeaders -Method 'PUT' -Uri $using:ServiceNowURI -Body $body
                       #  $response2 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI2 -Body $body
                       #  $response3 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI3 -Body $body
             
@@ -2774,8 +2787,9 @@ Update-MgUser -UserId $userId -BodyParameter $params
 
             if ($ParameterObject.action -eq "Create-Group") {
                 try {
-                    if($ParameterObject.path -ne ' '){
-                    if ($ParameterObject.managedby -ne '') {
+                    if ($ParameterObject.path -ne ' ') {
+
+                    if ($ParameterObject.managedby -ne ' ') {
                     $createGroup = New-ADGroup -Name $ParameterObject.name `
                         -Server $domainControllerIP `
                         -Credential $ADcredentials `
@@ -2797,7 +2811,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
                     }
                     }
                     else{
-                       if ($ParameterObject.managedby -ne '') {
+                       if ($ParameterObject.managedby -ne ' ') {
                     $createGroup = New-ADGroup -Name $ParameterObject.name `
                         -Server $domainControllerIP `
                         -Credential $ADcredentials `
@@ -2814,7 +2828,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
                         -GroupScope $ParameterObject.groupScope `
                         -GroupCategory $ParameterObject.groupCategory `
                         -PassThru:$true
-                    } 
+                    }  
                     }
                     $group = Get-ADGroup -Identity $createGroup.ObjectGUID `
                         -Properties Description `
@@ -4088,17 +4102,24 @@ Update-MgUser -UserId $userId -BodyParameter $params
                 try {
                    
                     $DisplayName = $ParameterObject.displayname
-                    $OU = Get-MgDirectoryAdministrativeUnit -AdministrativeUnitId $ParameterObject.organizationalunit 
-                    
+                    if($ParameterObject.membershiprule -ne ' '){
                     $params = @{
                         DisplayName = $ParameterObject.displayname
-                        MembershipType = $ParameterObject.membrshiptype
+                        MembershipType = $ParameterObject.membershiptype
 	                    MembershipRule = $ParameterObject.membershiprule
 	                    Description = $ParameterObject.description
                     }
+                    }
+                    else{
+                       $params = @{
+                        DisplayName = $ParameterObject.displayname
+                        MembershipType = $ParameterObject.membershiptype
+	                    Description = $ParameterObject.description
+                    } 
+                    }
 
-                    Update-MgDirectoryAdministrativeUnit -AdministrativeUnitId $ParameterObject.organizationalunit -BodyParameter $params
-                 
+                    Update-MgBetaAdministrativeUnit -AdministrativeUnitId $ParameterObject.organizationalunit -BodyParameter $params
+                    $OU = Get-MgDirectoryAdministrativeUnit -AdministrativeUnitId $ParameterObject.organizationalunit 
                     $Properties = Get-MgDirectoryAdministrativeUnit -AdministrativeUnitId $OU.Id | Select-Object -ExpandProperty AdditionalProperties 
                     $MembershipRule = $Properties['membershipRule']
                     $MembershipType = $Properties['membershipType']
