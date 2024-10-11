@@ -1614,7 +1614,8 @@ while ($TimeNow -le $TimeEnd) {
                     }
 
                     $user = Get-ADUser -Identity $ParameterObject.user `
-                        -Properties GivenName, Surname, UserPrincipalName, DisplayName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
+                        -Properties GivenName, Surname, UserPrincipalName, DisplayName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title, `
+                        extensionAttribute1, extensionAttribute2, extensionAttribute3, extensionAttribute4, extensionAttribute5, extensionAttribute6, extensionAttribute7, extensionAttribute8, extensionAttribute9, extensionAttribute10, extensionAttribute11, extensionAttribute12, extensionAttribute13, extensionAttribute14, extensionAttribute15 `
                         -Server $domainControllerIP `
                         -Credential $ADcredentials
       
@@ -1653,6 +1654,21 @@ while ($TimeNow -le $TimeEnd) {
                         'PostalCode'            = $user.PostalCode
                         'Title'                 = $user.Title
                         'sysid'                 = $ParameterObject.usersysid
+                        'extensionattribute1'   = $user.extensionAttribute1
+                        'extensionattribute2'   = $user.extensionattribute2
+                        'extensionattribute3'   = $user.extensionattribute3
+                        'extensionattribute4'   = $user.extensionattribute4
+                        'extensionattribute5'   = $user.extensionattribute5
+                        'extensionattribute6'   = $user.extensionattribute6
+                        'extensionattribute7'   = $user.extensionattribute7
+                        'extensionattribute8'   = $user.extensionattribute8
+                        'extensionattribute9'   = $user.extensionattribute9
+                        'extensionattribute10'   = $user.extensionattribute10
+                        'extensionattribute11'   = $user.extensionattribute11
+                        'extensionattribute12'   = $user.extensionAttribute12
+                        'extensionattribute13'   = $user.extensionAttribute13
+                        'extensionattribute14'   = $user.extensionattribute14
+                        'extensionattribute15'   = $user.extensionAttribute15
                     }
                     $json = $userInput | ConvertTo-Json
                     $body = [regex]::Replace($json, '(?<=")(.*?)(?=":)', { $args[0].Groups[1].Value.ToLower().replace(' ', '_') })
@@ -2027,7 +2043,8 @@ Update-MgUser -UserId $userId -BodyParameter $params
             if ($ParameterObject.action -eq "Initial-Import-Users") {
                 try {
                     $users = Get-ADUser -Filter * `
-                        -Properties GivenName, SamAccountName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, DIsplayName, ObjectClass, ObjectGuid, AccountExpirationDate, accountExpires, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
+                        -Properties GivenName, SamAccountName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, DIsplayName, ObjectClass, ObjectGuid, AccountExpirationDate, accountExpires, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title, `
+                        extensionAttribute1, extensionAttribute2, extensionAttribute3, extensionAttribute4, extensionAttribute5, extensionAttribute6, extensionAttribute7, extensionAttribute8, extensionAttribute9, extensionAttribute10, extensionAttribute11, extensionAttribute12, extensionAttribute13, extensionAttribute14, extensionAttribute15 `
                         -Server $domainControllerIP `
                         -Credential $ADcredentials
       
@@ -2046,7 +2063,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
                             'Enabled'               = $user.Enabled
                             'SamAccountName'        = $user.SamAccountName
                             'DistinguishedName'     = $user.DistinguishedName
-                            'Name'                  = $user.DisplayName
+                            'Name'                  = $user.Name
                             'ObjectClass'           = $user.ObjectClass
                             'ObjectGuid'            = $user.ObjectGuid
                             'AccountExpirationDate' = $user.AccountExpirationDate
@@ -2071,6 +2088,21 @@ Update-MgUser -UserId $userId -BodyParameter $params
                             'PostalCode'            = $user.PostalCode
                             'Title'                 = $user.Title
                             'Path'                  = $user.DistinguishedName
+                            'extensionattribute1'   = $user.extensionAttribute1
+                            'extensionattribute2'   = $user.extensionattribute2
+                            'extensionattribute3'   = $user.extensionattribute3
+                            'extensionattribute4'   = $user.extensionattribute4
+                            'extensionattribute5'   = $user.extensionattribute5
+                            'extensionattribute6'   = $user.extensionattribute6
+                            'extensionattribute7'   = $user.extensionattribute7
+                            'extensionattribute8'   = $user.extensionattribute8
+                            'extensionattribute9'   = $user.extensionattribute9
+                            'extensionattribute10'   = $user.extensionattribute10
+                            'extensionattribute11'   = $user.extensionattribute11
+                            'extensionattribute12'   = $user.extensionAttribute12
+                            'extensionattribute13'   = $user.extensionAttribute13
+                            'extensionattribute14'   = $user.extensionattribute14
+                            'extensionattribute15'   = $user.extensionAttribute15
                         }
                         $json = $userInput | ConvertTo-Json
                         $body = [regex]::Replace($json, '(?<=")(.*?)(?=":)', { $args[0].Groups[1].Value.ToLower().replace(' ', '_') })
@@ -2787,9 +2819,7 @@ Update-MgUser -UserId $userId -BodyParameter $params
 
             if ($ParameterObject.action -eq "Create-Group") {
                 try {
-                    if ($ParameterObject.path -ne ' ') {
-
-                    if ($ParameterObject.managedby -ne ' ') {
+                    if ($ParameterObject.managedby -ne '') {
                     $createGroup = New-ADGroup -Name $ParameterObject.name `
                         -Server $domainControllerIP `
                         -Credential $ADcredentials `
@@ -2808,27 +2838,6 @@ Update-MgUser -UserId $userId -BodyParameter $params
                         -GroupScope $ParameterObject.groupScope `
                         -GroupCategory $ParameterObject.groupCategory `
                         -PassThru:$true
-                    }
-                    }
-                    else{
-                       if ($ParameterObject.managedby -ne ' ') {
-                    $createGroup = New-ADGroup -Name $ParameterObject.name `
-                        -Server $domainControllerIP `
-                        -Credential $ADcredentials `
-                        -Description $ParameterObject.description `
-                        -GroupScope $ParameterObject.groupScope `
-                        -GroupCategory $ParameterObject.groupCategory `
-                        -ManagedBy $ParameterObject.managedby `
-                        -PassThru:$true
-                    }else{
-                        $createGroup = New-ADGroup -Name $ParameterObject.name `
-                        -Server $domainControllerIP `
-                        -Credential $ADcredentials `
-                        -Description $ParameterObject.description `
-                        -GroupScope $ParameterObject.groupScope `
-                        -GroupCategory $ParameterObject.groupCategory `
-                        -PassThru:$true
-                    }  
                     }
                     $group = Get-ADGroup -Identity $createGroup.ObjectGUID `
                         -Properties Description `
@@ -4102,24 +4111,17 @@ Update-MgUser -UserId $userId -BodyParameter $params
                 try {
                    
                     $DisplayName = $ParameterObject.displayname
-                    if($ParameterObject.membershiprule -ne ' '){
+                    $OU = Get-MgDirectoryAdministrativeUnit -AdministrativeUnitId $ParameterObject.organizationalunit 
+                    
                     $params = @{
                         DisplayName = $ParameterObject.displayname
-                        MembershipType = $ParameterObject.membershiptype
+                        MembershipType = $ParameterObject.membrshiptype
 	                    MembershipRule = $ParameterObject.membershiprule
 	                    Description = $ParameterObject.description
                     }
-                    }
-                    else{
-                       $params = @{
-                        DisplayName = $ParameterObject.displayname
-                        MembershipType = $ParameterObject.membershiptype
-	                    Description = $ParameterObject.description
-                    } 
-                    }
 
-                    Update-MgBetaAdministrativeUnit -AdministrativeUnitId $ParameterObject.organizationalunit -BodyParameter $params
-                    $OU = Get-MgDirectoryAdministrativeUnit -AdministrativeUnitId $ParameterObject.organizationalunit 
+                    Update-MgDirectoryAdministrativeUnit -AdministrativeUnitId $ParameterObject.organizationalunit -BodyParameter $params
+                 
                     $Properties = Get-MgDirectoryAdministrativeUnit -AdministrativeUnitId $OU.Id | Select-Object -ExpandProperty AdditionalProperties 
                     $MembershipRule = $Properties['membershipRule']
                     $MembershipType = $Properties['membershipType']
