@@ -130,7 +130,7 @@ if($null -ne $ADcredentialsName) {
     
         $domain = Get-ADDomain -Server $domainControllerIP -Credential $ADcredentials
         $forest = Get-ADForest -Server $domainControllerIP -Credential $ADcredentials
-        Write-Output $forest
+        
         $pam = Get-ADOptionalFeature -Server $domainControllerIP -Credential $ADcredentials -filter { name -like "Privileged*" }
         $pamEnabled = $false
     
@@ -176,7 +176,7 @@ $TimeEnd = $TimeNow.addMinutes(2)
 
 while ($TimeNow -le $TimeEnd) { 
     $TimeNow = Get-Date
-    $ServiceNowURI = "https://$instance.service-now.com/api/now/table/x_autps_active_dir_command_queue?sysparm_query=domain%3D$domainID%5Estatus%3D1%5EORDERBYsys_created_on&sysparm_limit=1"
+    $ServiceNowURI = "https://$instance.service-now.com/api/now/table/x_autps_active_dir_command_queue?sysparm_query=domain%3D$domainID%5Ecommand%3DCreate-User%5Estatus%3D1%5EORDERBYsys_created_on&sysparm_limit=1"
     Write-Verbose "ServiceNow URI: $ServiceNowURI"
     $jobQueue = Invoke-RestMethod -Method "GET" -Uri $ServiceNowURI -Headers $ServiceNowHeaders 
     if ($jobQueue.result) {
@@ -194,7 +194,7 @@ while ($TimeNow -le $TimeEnd) {
             if ($ParameterObject.action -eq "Create-User") {
 
                 try {
-                    Write-Output $ParameterObject.entitlement
+                    
                     if ($null -ne $ParameterObject.givenname -and $null -ne $ParameterObject.surname -and $ParameterObject.givenname -ne '' -and $ParameterObject.surname -ne '') {
                         $displayname = $ParameterObject.givenname + " " + $ParameterObject.surname 
                         $exists = [bool] (Get-ADUser -Filter "DisplayName -eq '$displayname'" -ErrorAction Ignore)
@@ -233,7 +233,13 @@ while ($TimeNow -le $TimeEnd) {
                     
 
                     $userPassword = ConvertTo-SecureString $ParameterObject.password -AsPlainText -Force
+                    
                     if(-Not [string]::IsNullOrWhiteSpace($ParameterObject.path)){
+                        $path = $ParameterObject.path
+                    }
+                    else{
+                       $path = $domain.UsersContainer  
+                    }
                     $createUser = New-ADUser -SamAccountName $samAccountName `
                         -Server $domainControllerIP `
                         -Credential $ADcredentials `
@@ -250,7 +256,7 @@ while ($TimeNow -le $TimeEnd) {
                         -OfficePhone $ParameterObject.officePhone `
                         -MobilePhone $ParameterObject.mobilePhone `
                         -Manager $manager `
-                        -Path $ParameterObject.path `
+                        -Path $path `
                         -Department $ParameterObject.department `
                         -EmployeeID $ParameterObject.employeeid `
                         -EmployeeNumber $ParameterObject.employeenumber `
@@ -260,37 +266,10 @@ while ($TimeNow -le $TimeEnd) {
                         -Enabled:$true `
                         -ChangePasswordAtLogon:$false `
                         -PassThru:$true
-                        }   
-                    else{
-              $createUser = New-ADUser -SamAccountName $samAccountName `
-                        -Server $domainControllerIP `
-                        -Credential $ADcredentials `
-                        -Name $displayname `
-                        -Givenname $ParameterObject.givenname `
-                        -Surname $ParameterObject.surname `
-                        -Title $ParameterObject.title `
-                        -Office $ParameterObject.office `
-                        -PostalCode $ParameterObject.postalcode `
-                        -City $ParameterObject.city `
-                        -UserPrincipalName $userPrincipalName `
-                        -Company $ParameterObject.company `
-                        -EmailAddress $ParameterObject.emailAddress `
-                        -OfficePhone $ParameterObject.officePhone `
-                        -MobilePhone $ParameterObject.mobilePhone `
-                        -Manager $manager `
-                        -Department $ParameterObject.department `
-                        -EmployeeID $ParameterObject.employeeid `
-                        -EmployeeNumber $ParameterObject.employeenumber `
-                        -Description $ParameterObject.description `
-                        -AccountPassword $userPassword `
-                        -StreetAddress $ParameterObject.streetaddress `
-                        -Enabled:$true `
-                        -ChangePasswordAtLogon:$false `
-                        -PassThru:$true
-          }
+                        
 
                     $user = Get-ADUser -Identity $ParameterObject.username `
-                        -Properties GivenName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
+                        -Properties GivenName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, EmployeeType, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
                         -Server $domainControllerIP `
                         -Credential $ADcredentials
 
@@ -304,8 +283,7 @@ while ($TimeNow -le $TimeEnd) {
                      }
                               
                     if(-Not [string]::IsNullOrWhiteSpace($ParameterObject.expirationdate)){
-                        $user.AccountExpirationDate = $ParameterObject.expirationdate
-                         Set-ADUser -Instance $user
+                        Set-ADAccountExpiration -Identity $ParameterObject.username -DateTime $ParameterObject.expirationdate -Server $domainControllerIP -Credential $ADcredentials
                     }
                     if(-Not [string]::IsNullOrWhiteSpace($ParameterObject.extensionattribute1)){
                         $userea = Get-ADUser -Identity $ParameterObject.username -Properties extensionattribute1
@@ -456,10 +434,19 @@ while ($TimeNow -le $TimeEnd) {
                             }
                         
                     }
+                    if(-Not [string]::IsNullOrWhiteSpace($ParameterObject.employeetype)){
+                         Set-ADUser -Identity $user -Add @{'employeeType' = $ParameterObject.employeetype} -Server $domainControllerIP -Credential $ADcredentials
+                    }
+                   
                     $ServiceNowURI = "https://$instance.service-now.com/api/x_autps_active_dir/domain/$domainID/user"
                    
                     Write-Verbose "ServiceNow URL $ServiceNowURI"
-          
+                    $user = Get-ADUser -Identity $ParameterObject.username `
+                        -Properties GivenName, Surname, UserPrincipalName, Enabled, SamAccountName, DistinguishedName, Name, ObjectClass, ObjectGuid, AccountExpirationDate, AccountLockoutTime, CannotChangePassword, City, Company, Country, Department, Description, EmailAddress, EmployeeID, EmployeeNumber, EmployeeType, lastLogon, LockedOut, MobilePhone, Office, OfficePhone, PasswordExpired, PasswordNeverExpires, PostalCode, Title `
+                        -Server $domainControllerIP `
+                        -Credential $ADcredentials
+                        $Info = Get-ADUser -Identity $ParameterObject.username -Properties * | Select-Object AccountExpirationDate
+                       
                     $userInput = @{
                         'GivenName'             = $user.GivenName
                         'Surname'               = $user.Surname
@@ -497,7 +484,9 @@ while ($TimeNow -le $TimeEnd) {
                     $body = [System.Text.Encoding]::UTF8.GetBytes($body)
                     
                     $response = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI -Body $body
-                
+                  #  $response2 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI2 -Body $body
+                   # $response3 = Invoke-RestMethod -Headers $ServiceNowHeaders -Method 'PUT' -Uri $ServiceNowURI3 -Body $body
+
                     $output = $response.RawContent
                     Write-Verbose "ServiceNow output: $output"
                     SNComplete $jobQueueItem.sys_id
